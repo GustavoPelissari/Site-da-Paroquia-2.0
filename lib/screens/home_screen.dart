@@ -20,6 +20,7 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   late Timer _timer;
   Duration _remaining = Duration.zero;
+  EventModel? _proximaMissa;
 
   @override
   void initState() {
@@ -36,16 +37,21 @@ class _HomeScreenState extends State<HomeScreen> {
 
     if (missas.isEmpty) {
       _remaining = Duration.zero;
+      _proximaMissa = null;
       return;
     }
 
     missas.sort((a, b) => a.dataHora.compareTo(b.dataHora));
 
-    // Regra crítica do PDF: usar relógio do servidor (ou offset sincronizado),
-    // não DateTime.now() direto.
+    // Regra crítica: usar relógio do servidor (ou offset sincronizado), não do cliente.
     final agora = widget.appState.serverNow;
 
-    _remaining = missas.first.dataHora.difference(agora);
+    _proximaMissa = missas.firstWhere(
+      (m) => m.dataHora.isAfter(agora),
+      orElse: () => missas.last,
+    );
+
+    _remaining = _proximaMissa!.dataHora.difference(agora);
   }
 
   @override
@@ -55,7 +61,9 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   String _format(Duration d) {
-    if (d.isNegative) return 'Em andamento';
+    if (_proximaMissa == null) return '--:--:--';
+    if (d.isNegative) return 'Em andamento / já passou';
+
     String two(int n) => n.toString().padLeft(2, '0');
     return '${two(d.inHours)}:${two(d.inMinutes % 60)}:${two(d.inSeconds % 60)}';
   }
@@ -92,6 +100,13 @@ class _HomeScreenState extends State<HomeScreen> {
                 _format(_remaining),
                 style: const TextStyle(fontSize: 32),
               ),
+              if (_proximaMissa != null) ...[
+                const SizedBox(height: 6),
+                Text(
+                  '${_proximaMissa!.local} • ${_proximaMissa!.dataHora}',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+              ],
               const SizedBox(height: 4),
               Text(
                 widget.appState.serverClockReady
