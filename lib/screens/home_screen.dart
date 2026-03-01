@@ -31,9 +31,8 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _updateCountdown() {
-    final missas = widget.appState.events
-        .where((e) => e.tipo == EventType.missa)
-        .toList();
+    final missas =
+        widget.appState.events.where((e) => e.tipo == EventType.missa).toList();
 
     if (missas.isEmpty) {
       _remaining = Duration.zero;
@@ -41,7 +40,12 @@ class _HomeScreenState extends State<HomeScreen> {
     }
 
     missas.sort((a, b) => a.dataHora.compareTo(b.dataHora));
-    _remaining = missas.first.dataHora.difference(DateTime.now());
+
+    // Regra crítica do PDF: usar relógio do servidor (ou offset sincronizado),
+    // não DateTime.now() direto.
+    final agora = widget.appState.serverNow;
+
+    _remaining = missas.first.dataHora.difference(agora);
   }
 
   @override
@@ -64,14 +68,36 @@ class _HomeScreenState extends State<HomeScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
-                'Próxima Missa',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              Row(
+                children: [
+                  const Expanded(
+                    child: Text(
+                      'Próxima Missa',
+                      style:
+                          TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                  if (!widget.appState.serverClockReady)
+                    const Padding(
+                      padding: EdgeInsets.only(left: 8),
+                      child: Tooltip(
+                        message: 'Ainda sincronizando com o servidor...',
+                        child: Icon(Icons.cloud_sync, size: 18),
+                      ),
+                    ),
+                ],
               ),
               const SizedBox(height: 8),
               Text(
                 _format(_remaining),
                 style: const TextStyle(fontSize: 32),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                widget.appState.serverClockReady
+                    ? 'Baseado no relógio do servidor'
+                    : 'Usando relógio do celular (fallback)',
+                style: Theme.of(context).textTheme.bodySmall,
               ),
             ],
           ),

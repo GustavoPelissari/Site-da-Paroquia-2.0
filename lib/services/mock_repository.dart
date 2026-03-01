@@ -72,6 +72,20 @@ class MockRepository {
     ),
   ];
 
+  /// "Hora do servidor" (mock).
+  ///
+  /// Regra do PDF: a "Próxima Missa" deve ser calculada pelo relógio do servidor,
+  /// não pelo relógio do celular.
+  ///
+  /// No MVP (mock), a gente simula isso aqui. Quando ligar o backend de verdade,
+  /// essa função deve chamar um endpoint tipo `GET /time` e retornar o `DateTime`
+  /// do servidor.
+  Future<DateTime> fetchServerNow() async {
+    // Simulação opcional de drift do servidor (ex.: +12s).
+    const simulatedDrift = Duration(seconds: 0);
+    return DateTime.now().add(simulatedDrift);
+  }
+
   // Helpers simples
   List<NewsModel> getNewsByGroup(String groupId) {
     return news.where((n) => n.groupId == groupId).toList();

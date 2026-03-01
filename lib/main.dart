@@ -8,8 +8,23 @@ void main() {
   runApp(const ParoquiaApp());
 }
 
-class ParoquiaApp extends StatelessWidget {
+class ParoquiaApp extends StatefulWidget {
   const ParoquiaApp({super.key});
+
+  @override
+  State<ParoquiaApp> createState() => _ParoquiaAppState();
+}
+
+class _ParoquiaAppState extends State<ParoquiaApp> {
+  final AppState _appState = AppState();
+
+  @override
+  void initState() {
+    super.initState();
+    // Regra crítica do PDF: sincronizar o relógio com o servidor
+    // pra calcular "Próxima Missa" corretamente.
+    _appState.syncServerClock();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -17,7 +32,7 @@ class ParoquiaApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       title: 'Paróquia MVP',
       theme: AppTheme.lightTheme,
-      home: MainShellScreen(appState: AppState()),
+      home: MainShellScreen(appState: _appState),
     );
   }
 }
