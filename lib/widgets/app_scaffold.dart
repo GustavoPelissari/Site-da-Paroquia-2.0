@@ -62,7 +62,7 @@ class AppScaffold extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: onDark.withOpacity(0.85),
+                          color: onDark.withValues(alpha: 0.85),
                         ),
                   ),
                 ],

@@ -5,6 +5,8 @@ class NewsModel {
   final DateTime dataPublicacao;
   final String? groupId;
   final String? imagemUrl;
+  final String? linkExterno;
+  final bool publico;
 
   NewsModel({
     required this.id,
@@ -13,5 +15,7 @@ class NewsModel {
     required this.dataPublicacao,
     this.groupId,
     this.imagemUrl,
+    this.linkExterno,
+    this.publico = true,
   });
 }
