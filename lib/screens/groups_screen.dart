@@ -17,7 +17,7 @@ class GroupsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final safeBottom = MediaQuery.paddingOf(context).bottom;
-    final bottomInset = appState.isAdmin ? 146.0 : 104.0;
+    final bottomInset = 104.0;
     final hasLocalContent = appState.groups.isNotEmpty;
     final shouldShowBlockingLoading =
         appState.isLoadingRemoteData && !hasLocalContent;

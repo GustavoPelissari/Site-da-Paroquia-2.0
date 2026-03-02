@@ -55,7 +55,7 @@ class MockRepository {
         id: 'u5',
         nome: 'Padre Jose',
         email: 'padre.jose@paroquia.local',
-        nivelAcesso: 4,
+        nivelAcesso: 3,
         groupIds: {'g1', 'g2', 'g3'},
       ),
     ),

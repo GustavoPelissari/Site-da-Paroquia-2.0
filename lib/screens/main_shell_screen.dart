@@ -7,6 +7,7 @@ import 'create_news_form.dart';
 import 'events_screen.dart';
 import 'groups_screen.dart';
 import 'home_screen.dart';
+import 'horarios_screen.dart';
 import 'profile_screen.dart';
 
 class MainShellScreen extends StatefulWidget {
@@ -27,12 +28,19 @@ class _MainShellScreenState extends State<MainShellScreen> {
   int _currentIndex = 0;
 
   @override
+  void initState() {
+    super.initState();
+    _currentIndex = widget.appState.landingTabIndexForCurrentUser();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return AnimatedBuilder(
       animation: widget.appState,
       builder: (context, _) {
         final screens = [
           HomeScreen(appState: widget.appState),
+          HorariosScreen(appState: widget.appState),
           GroupsScreen(appState: widget.appState),
           EventsScreen(appState: widget.appState),
           ProfileScreen(appState: widget.appState),
@@ -53,34 +61,12 @@ class _MainShellScreenState extends State<MainShellScreen> {
             bottom: false,
             child: screens[_currentIndex],
           ),
-          floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
-          floatingActionButton: widget.appState.hasFloatingAdminActions
-              ? FloatingActionButton.small(
-                  elevation: 2,
-                  highlightElevation: 3,
-                  tooltip: 'Novo',
-                  onPressed: () => _openAdminSheet(context),
-                  child: const Icon(Icons.add, size: 20),
-                )
-              : null,
           bottomNavigationBar: _BottomShellBar(
             currentIndex: _currentIndex,
-            hasFab: widget.appState.hasFloatingAdminActions,
             onTap: (index) => setState(() => _currentIndex = index),
           ),
         );
       },
-    );
-  }
-
-  void _openAdminSheet(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (_) => _AdminSheet(appState: widget.appState),
     );
   }
 
@@ -147,7 +133,7 @@ class _InstitutionalHeader extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Paroquia Sao Paulo Apostolo',
+                    'Paróquia São Paulo Apóstolo',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(
@@ -169,38 +155,39 @@ class _InstitutionalHeader extends StatelessWidget {
                 ],
               ),
             ),
-            if (appState.canOpenAdminMenu)
-              PopupMenuButton<String>(
-                icon: const Icon(Icons.menu_rounded, color: Colors.white),
-                color: Colors.white,
-                onSelected: (value) {
-                  if (value == 'news') {
-                    onCreateNews();
-                  } else if (value == 'event') {
-                    onCreateEvent();
-                  } else if (value == 'users') {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Gestao de usuarios em implementacao.')),
-                    );
-                  } else if (value == 'logout') {
-                    appState.logout();
-                  }
-                },
-                itemBuilder: (_) {
-                  final items = <PopupMenuEntry<String>>[];
-                  if (appState.canCreateNews) {
-                    items.add(const PopupMenuItem(value: 'news', child: Text('Nova noticia')));
-                  }
-                  if (appState.canCreateEvents) {
-                    items.add(const PopupMenuItem(value: 'event', child: Text('Novo evento')));
-                  }
-                  if (appState.canManageUsers) {
-                    items.add(const PopupMenuItem(value: 'users', child: Text('Gerenciar usuarios')));
-                  }
-                  items.add(const PopupMenuItem(value: 'logout', child: Text('Sair')));
-                  return items;
-                },
-              ),
+            PopupMenuButton<String>(
+              icon: const Icon(Icons.menu_rounded, color: Colors.white),
+              color: Colors.white,
+              onSelected: (value) {
+                if (value == 'news') {
+                  onCreateNews();
+                } else if (value == 'event') {
+                  onCreateEvent();
+                } else if (value == 'users') {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Gestão de usuários em implementação.')),
+                  );
+                } else if (value == 'logout') {
+                  appState.logout();
+                }
+              },
+              itemBuilder: (_) {
+                final items = <PopupMenuEntry<String>>[];
+                if (appState.canCreateNews) {
+                  items.add(const PopupMenuItem(value: 'news', child: Text('Nova notícia')));
+                }
+                if (appState.canCreateEvents) {
+                  items.add(const PopupMenuItem(value: 'event', child: Text('Novo evento')));
+                }
+                if (appState.canManageUsers) {
+                  items.add(
+                    const PopupMenuItem(value: 'users', child: Text('Gerenciar usuários')),
+                  );
+                }
+                items.add(const PopupMenuItem(value: 'logout', child: Text('Sair')));
+                return items;
+              },
+            ),
           ],
         ),
       ),
@@ -211,12 +198,10 @@ class _InstitutionalHeader extends StatelessWidget {
 class _BottomShellBar extends StatelessWidget {
   const _BottomShellBar({
     required this.currentIndex,
-    required this.hasFab,
     required this.onTap,
   });
 
   final int currentIndex;
-  final bool hasFab;
   final ValueChanged<int> onTap;
 
   @override
@@ -227,8 +212,6 @@ class _BottomShellBar extends StatelessWidget {
         elevation: 8,
         color: Colors.white,
         surfaceTintColor: Colors.white,
-        notchMargin: hasFab ? 8 : 0,
-        shape: hasFab ? const CircularNotchedRectangle() : null,
         child: Container(
           height: 72,
           padding: const EdgeInsets.fromLTRB(8, 8, 8, 8),
@@ -241,34 +224,41 @@ class _BottomShellBar extends StatelessWidget {
               Expanded(
                 child: _NavItem(
                   icon: Icons.home_rounded,
-                  label: 'Inicio',
+                  label: 'Início',
                   selected: currentIndex == 0,
                   onTap: () => onTap(0),
                 ),
               ),
               Expanded(
                 child: _NavItem(
-                  icon: Icons.groups_rounded,
-                  label: 'Grupos',
+                  icon: Icons.schedule_rounded,
+                  label: 'Horários',
                   selected: currentIndex == 1,
                   onTap: () => onTap(1),
                 ),
               ),
-              SizedBox(width: hasFab ? 52 : 0),
               Expanded(
                 child: _NavItem(
-                  icon: Icons.event_note_rounded,
-                  label: 'Eventos',
+                  icon: Icons.groups_rounded,
+                  label: 'Grupos',
                   selected: currentIndex == 2,
                   onTap: () => onTap(2),
                 ),
               ),
               Expanded(
                 child: _NavItem(
-                  icon: Icons.person_rounded,
-                  label: 'Perfil',
+                  icon: Icons.event_note_rounded,
+                  label: 'Eventos',
                   selected: currentIndex == 3,
                   onTap: () => onTap(3),
+                ),
+              ),
+              Expanded(
+                child: _NavItem(
+                  icon: Icons.person_rounded,
+                  label: 'Perfil',
+                  selected: currentIndex == 4,
+                  onTap: () => onTap(4),
                 ),
               ),
             ],
@@ -331,99 +321,6 @@ class _NavItem extends StatelessWidget {
           ],
         ),
       ),
-    );
-  }
-}
-
-class _AdminSheet extends StatelessWidget {
-  const _AdminSheet({required this.appState});
-
-  final AppState appState;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 18, 20, 24),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Acoes administrativas',
-            style: Theme.of(context).textTheme.titleLarge,
-          ),
-          const SizedBox(height: 14),
-          if (appState.canCreateNews)
-            _AdminTile(
-              icon: Icons.article_outlined,
-              title: 'Criar noticia',
-              onTap: () {
-                Navigator.pop(context);
-                showModalBottomSheet(
-                  context: context,
-                  isScrollControlled: true,
-                  builder: (_) => CreateNewsForm(appState: appState),
-                );
-              },
-            ),
-          if (appState.canCreateEvents)
-            _AdminTile(
-              icon: Icons.event_outlined,
-              title: 'Criar evento',
-              onTap: () {
-                Navigator.pop(context);
-                showModalBottomSheet(
-                  context: context,
-                  isScrollControlled: true,
-                  builder: (_) => CreateEventForm(appState: appState),
-                );
-              },
-            ),
-          if (appState.canManageUsers)
-            _AdminTile(
-              icon: Icons.manage_accounts_outlined,
-              title: 'Gerenciar usuarios',
-              onTap: () {
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Gestao de usuarios em implementacao.')),
-                );
-              },
-            ),
-        ],
-      ),
-    );
-  }
-}
-
-class _AdminTile extends StatelessWidget {
-  const _AdminTile({
-    required this.icon,
-    required this.title,
-    required this.onTap,
-  });
-
-  final IconData icon;
-  final String title;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return ListTile(
-      contentPadding: EdgeInsets.zero,
-      horizontalTitleGap: 12,
-      leading: Container(
-        width: 40,
-        height: 40,
-        decoration: BoxDecoration(
-          color: const Color(0xFFF6ECEE),
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Icon(icon, color: AppTheme.vinhoParoquial),
-      ),
-      title: Text(title),
-      trailing: const Icon(Icons.chevron_right_rounded),
-      onTap: onTap,
     );
   }
 }

@@ -6,6 +6,7 @@ import '../models/event_model.dart';
 import '../models/form_model.dart';
 import '../models/group_model.dart';
 import '../models/news_model.dart';
+import '../models/parish_info_model.dart';
 import '../models/schedule_model.dart';
 import '../models/user_model.dart';
 import '../services/api_repository.dart';
@@ -14,13 +15,14 @@ import '../services/mock_repository.dart';
 class AppState extends ChangeNotifier {
   static const _storage = FlutterSecureStorage();
   static const _tokenKey = 'auth_token';
-  static const _emailKey = 'auth_email';
+  static const _refreshTokenKey = 'auth_refresh_token';
 
   final MockRepository _repository = MockRepository();
   final ApiRepository _api = ApiRepository();
 
   UserModel? _currentUser;
   String? _token;
+  String? _refreshToken;
   bool _authLoading = true;
   String? _authError;
 
@@ -33,6 +35,12 @@ class AppState extends ChangeNotifier {
   bool _serverClockReady = false;
   bool _isLoadingRemoteData = false;
   String? _remoteError;
+  List<MassScheduleModel>? _massSchedulesCache;
+  DateTime? _massSchedulesCacheAt;
+  List<OfficeHourModel>? _officeHoursCache;
+  DateTime? _officeHoursCacheAt;
+  NextMassModel? _nextMassCache;
+  DateTime? _nextMassCacheAt;
 
   bool get isAuthenticated => _currentUser != null && _token != null;
   bool get authLoading => _authLoading;
@@ -53,15 +61,13 @@ class AppState extends ChangeNotifier {
 
   bool hasCapability(AppCapability capability) {
     if (!isAuthenticated) return false;
-    if (currentRole == AppRole.padre) return true;
     return user.capabilities.contains(capability);
   }
 
   bool get canOpenAdminMenu =>
       isAuthenticated &&
       (currentRole == AppRole.coordenador ||
-          currentRole == AppRole.administrativo ||
-          currentRole == AppRole.padre);
+          currentRole == AppRole.administrativo);
 
   bool get isAdmin => canOpenAdminMenu;
   bool get hasFloatingAdminActions => canCreateNews || canCreateEvents;
@@ -78,19 +84,25 @@ class AppState extends ChangeNotifier {
 
     try {
       final storedToken = await _storage.read(key: _tokenKey);
-      final storedEmail = await _storage.read(key: _emailKey);
+      final storedRefreshToken = await _storage.read(key: _refreshTokenKey);
 
-      if (storedToken != null && storedEmail != null) {
+      if (storedToken != null && storedRefreshToken != null) {
         try {
-          final user = await _api.me(storedToken);
+          _api.setSessionToken(storedToken);
+          final user = await _api.me();
           _currentUser = user;
           _token = storedToken;
+          _refreshToken = storedRefreshToken;
         } catch (_) {
-          final local = _repository.findUserByEmail(storedEmail);
-          if (local != null) {
-            _currentUser = local;
-            _token = 'mock-token-${local.id}';
-          } else {
+          try {
+            final session = await _api.refresh(refreshToken: storedRefreshToken);
+            _token = session.token;
+            _refreshToken = session.refreshToken;
+            _currentUser = session.user;
+            _api.setSessionToken(_token);
+            await _storage.write(key: _tokenKey, value: _token);
+            await _storage.write(key: _refreshTokenKey, value: _refreshToken);
+          } catch (_) {
             await _clearSession();
           }
         }
@@ -114,51 +126,78 @@ class AppState extends ChangeNotifier {
     required String senha,
   }) async {
     _authError = null;
-    _authLoading = true;
-    notifyListeners();
 
     try {
       final result = await _api.login(email: email, senha: senha);
       _token = result.token;
+      _refreshToken = result.refreshToken;
       _currentUser = result.user;
+      _api.setSessionToken(_token);
       try {
         await _storage.write(key: _tokenKey, value: _token);
-        await _storage.write(key: _emailKey, value: email.toLowerCase());
+        await _storage.write(key: _refreshTokenKey, value: _refreshToken);
       } catch (_) {}
-    } catch (_) {
-      final local = _repository.authenticate(email, senha);
-      if (local == null) {
-        _authError = 'Credenciais invalidas.';
-        _authLoading = false;
-        notifyListeners();
-        return false;
-      }
-      _token = local.token;
-      _currentUser = local.user;
-      try {
-        await _storage.write(key: _tokenKey, value: _token);
-        await _storage.write(key: _emailKey, value: email.toLowerCase());
-      } catch (_) {}
+    } catch (e) {
+      _authError = 'Falha no login: $e';
+      return false;
     }
 
     await Future.wait([syncServerClock(), loadRemoteData()]);
-    _authLoading = false;
-    notifyListeners();
+    return true;
+  }
+
+  Future<bool> register({
+    required String nome,
+    required String email,
+    required String senha,
+  }) async {
+    _authError = null;
+
+    try {
+      final result = await _api.register(name: nome, email: email, password: senha);
+      _token = result.token;
+      _refreshToken = result.refreshToken;
+      _currentUser = result.user;
+      _api.setSessionToken(_token);
+      try {
+        await _storage.write(key: _tokenKey, value: _token);
+        await _storage.write(key: _refreshTokenKey, value: _refreshToken);
+      } catch (_) {}
+    } catch (e) {
+      _authError = 'Falha no cadastro: $e';
+      return false;
+    }
+
+    await Future.wait([syncServerClock(), loadRemoteData()]);
     return true;
   }
 
   Future<void> logout() async {
+    try {
+      if (_token != null) {
+        _api.setSessionToken(_token);
+        await _api.logout();
+      }
+    } catch (_) {}
+
     await _clearSession();
-    _authLoading = false;
     notifyListeners();
   }
 
   Future<void> _clearSession() async {
     _currentUser = null;
     _token = null;
+    _refreshToken = null;
+    _massSchedulesCache = null;
+    _massSchedulesCacheAt = null;
+    _officeHoursCache = null;
+    _officeHoursCacheAt = null;
+    _nextMassCache = null;
+    _nextMassCacheAt = null;
+    _api.setSessionToken(null);
     try {
       await _storage.delete(key: _tokenKey);
-      await _storage.delete(key: _emailKey);
+      await _storage.delete(key: _refreshTokenKey);
     } catch (_) {}
   }
 
@@ -176,7 +215,7 @@ class AppState extends ChangeNotifier {
 
   bool canManageGroup(String groupId) {
     if (!isAuthenticated) return false;
-    if (currentRole == AppRole.padre || currentRole == AppRole.administrativo) {
+    if (currentRole == AppRole.administrativo) {
       return true;
     }
     final group = groupById(groupId);
@@ -186,7 +225,7 @@ class AppState extends ChangeNotifier {
 
   bool canViewGroupPrivateContent(String groupId) {
     if (!isAuthenticated) return false;
-    if (currentRole == AppRole.padre || currentRole == AppRole.administrativo) {
+    if (currentRole == AppRole.administrativo) {
       return true;
     }
     return isMemberOfGroup(groupId) || canManageGroup(groupId);
@@ -317,7 +356,7 @@ class AppState extends ChangeNotifier {
 
   int responsesCount(String formId, {String? groupId}) {
     if (!isAuthenticated) return 0;
-    if (currentRole == AppRole.padre || currentRole == AppRole.administrativo) {
+    if (currentRole == AppRole.administrativo) {
       return _formResponses.where((r) => r.formId == formId).length;
     }
     if (groupId != null && canManageGroup(groupId)) {
@@ -328,17 +367,101 @@ class AppState extends ChangeNotifier {
 
   void setNivelAcesso(int nivel) {
     if (!isAuthenticated) return;
-    user.nivelAcesso = nivel;
+    user.nivelAcesso = nivel.clamp(0, 3).toInt();
     notifyListeners();
   }
 
-  void addNews(NewsModel newsItem) {
-    _news.insert(0, newsItem);
+  int landingTabIndexForCurrentUser() {
+    return 0;
+  }
+
+  Future<List<MassScheduleModel>> fetchMassSchedules({bool forceRefresh = false}) async {
+    final now = DateTime.now();
+    final isFresh = _massSchedulesCacheAt != null &&
+        now.difference(_massSchedulesCacheAt!) < const Duration(minutes: 5);
+    if (!forceRefresh && isFresh && _massSchedulesCache != null) {
+      return _massSchedulesCache!;
+    }
+
+    final data = await _api.fetchPublicMassSchedules();
+    _massSchedulesCache = data;
+    _massSchedulesCacheAt = now;
+    return data;
+  }
+
+  Future<List<OfficeHourModel>> fetchOfficeHours({bool forceRefresh = false}) async {
+    final now = DateTime.now();
+    final isFresh =
+        _officeHoursCacheAt != null && now.difference(_officeHoursCacheAt!) < const Duration(minutes: 5);
+    if (!forceRefresh && isFresh && _officeHoursCache != null) {
+      return _officeHoursCache!;
+    }
+
+    final data = await _api.fetchPublicOfficeHours();
+    _officeHoursCache = data;
+    _officeHoursCacheAt = now;
+    return data;
+  }
+
+  Future<NextMassModel> fetchNextMass({bool forceRefresh = false}) async {
+    final now = DateTime.now();
+    final isFresh =
+        _nextMassCacheAt != null && now.difference(_nextMassCacheAt!) < const Duration(minutes: 3);
+    if (!forceRefresh && isFresh && _nextMassCache != null) {
+      return _nextMassCache!;
+    }
+
+    final data = await _api.fetchNextMass();
+    _nextMassCache = data;
+    _nextMassCacheAt = now;
+    return data;
+  }
+
+  Future<void> createNewsItem({
+    required String titulo,
+    required String conteudo,
+    String? groupId,
+    String? imagemUrl,
+    String? linkExterno,
+    required bool publico,
+  }) async {
+    if (!isAuthenticated || !canCreateNews) {
+      throw Exception('Sem permissao para criar noticia.');
+    }
+    final created = await _api.createNews(
+      titulo: titulo,
+      conteudo: conteudo,
+      groupId: groupId,
+      imagemUrl: imagemUrl,
+      linkExterno: linkExterno,
+      publico: publico,
+    );
+    _news.insert(0, created);
     notifyListeners();
   }
 
-  void addEvent(EventModel event) {
-    _events.add(event);
+  Future<void> createEventItem({
+    required String nome,
+    required String local,
+    required EventType tipo,
+    String? groupId,
+    String? imagemUrl,
+    String? linkExterno,
+    required bool publico,
+  }) async {
+    if (!isAuthenticated || !canCreateEvents) {
+      throw Exception('Sem permissao para criar evento.');
+    }
+    final created = await _api.createEvent(
+      nome: nome,
+      local: local,
+      tipo: tipo,
+      groupId: groupId,
+      imagemUrl: imagemUrl,
+      linkExterno: linkExterno,
+      publico: publico,
+    );
+    _events.add(created);
     notifyListeners();
   }
 }

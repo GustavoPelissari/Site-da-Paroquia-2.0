@@ -108,7 +108,7 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     final safeBottom = MediaQuery.paddingOf(context).bottom;
-    final bottomInset = widget.appState.isAdmin ? 146.0 : 104.0;
+    final bottomInset = 104.0;
     final eventsFeed = widget.appState.events.take(4).toList();
     final newsFeed = widget.appState.news.take(3).toList();
     final hasLocalContent = eventsFeed.isNotEmpty || newsFeed.isNotEmpty;
@@ -295,7 +295,7 @@ class _NextMassCard extends StatelessWidget {
               Row(
                 children: [
                   Text(
-                    'Proxima Missa',
+                    'Próxima Missa',
                     style: Theme.of(context).textTheme.titleLarge?.copyWith(
                           color: Colors.white,
                         ),
@@ -338,7 +338,7 @@ class _NextMassCard extends StatelessWidget {
               ),
               const SizedBox(height: 6),
               Text(
-                missa?.local ?? 'Local nao informado',
+                missa?.local ?? 'Local não informado',
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                       color: Colors.white.withValues(alpha: 0.9),
                     ),

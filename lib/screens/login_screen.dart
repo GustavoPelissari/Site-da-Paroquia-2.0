@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../state/app_state.dart';
+import 'register_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key, required this.appState});
@@ -65,7 +67,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   const SizedBox(height: 18),
                   Text(
-                    'Paroquia Sao Paulo Apostolo',
+                    'Paróquia São Paulo Apóstolo',
                     textAlign: TextAlign.center,
                     style: Theme.of(context).textTheme.headlineMedium,
                   ),
@@ -78,6 +80,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   const SizedBox(height: 18),
                   TextField(
                     controller: _emailCtrl,
+                    enabled: !_loading,
                     decoration: const InputDecoration(
                       labelText: 'Email',
                       border: OutlineInputBorder(),
@@ -86,6 +89,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   const SizedBox(height: 10),
                   TextField(
                     controller: _senhaCtrl,
+                    enabled: !_loading,
                     obscureText: true,
                     decoration: const InputDecoration(
                       labelText: 'Senha',
@@ -94,11 +98,27 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   if (_error != null) ...[
                     const SizedBox(height: 10),
-                    Text(
-                      _error!,
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: Colors.red,
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFFEBEE),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: const Color(0xFFEF9A9A)),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.error_outline, color: Color(0xFFC62828), size: 18),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              _error!,
+                              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                    color: const Color(0xFFC62828),
+                                  ),
+                            ),
                           ),
+                        ],
+                      ),
                     ),
                   ],
                   const SizedBox(height: 14),
@@ -112,6 +132,34 @@ class _LoginScreenState extends State<LoginScreen> {
                           )
                         : const Text('Entrar'),
                   ),
+                  const SizedBox(height: 12),
+                  Wrap(
+                    alignment: WrapAlignment.center,
+                    spacing: 8,
+                    runSpacing: 4,
+                    children: [
+                      TextButton(
+                        onPressed: _loading
+                            ? null
+                            : () {
+                                Navigator.of(context).push(
+                                  MaterialPageRoute(
+                                    builder: (_) => RegisterScreen(appState: widget.appState),
+                                  ),
+                                );
+                              },
+                        child: const Text('Criar conta'),
+                      ),
+                      TextButton(
+                        onPressed: _loading ? null : _onForgotPassword,
+                        child: const Text('Esqueci minha senha'),
+                      ),
+                      TextButton(
+                        onPressed: _loading ? null : _openPrivacyPolicy,
+                        child: const Text('Política de Privacidade'),
+                      ),
+                    ],
+                  ),
                 ],
               ),
             ),
@@ -122,18 +170,53 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _submit() async {
+    if (_loading) return;
+
     setState(() {
       _loading = true;
       _error = null;
     });
-    final ok = await widget.appState.login(
-      email: _emailCtrl.text.trim(),
-      senha: _senhaCtrl.text,
-    );
+    bool ok = false;
+    try {
+      ok = await widget.appState
+          .login(
+            email: _emailCtrl.text.trim(),
+            senha: _senhaCtrl.text,
+          )
+          .timeout(const Duration(seconds: 20));
+    } catch (_) {
+      ok = false;
+    }
     if (!mounted) return;
     setState(() {
       _loading = false;
-      _error = ok ? null : (widget.appState.authError ?? 'Falha no login.');
+      _error = ok
+          ? null
+          : (widget.appState.authError ??
+              'Falha no login. Verifique servidor/API e tente novamente.');
     });
+  }
+
+  void _onForgotPassword() {
+    showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Recuperar senha'),
+        content: const Text(
+          'Solicite redefinição de senha com a secretaria paroquial até o módulo de recuperação ser publicado.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Fechar'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _openPrivacyPolicy() async {
+    final uri = Uri.parse('https://paroquia.local/politica-de-privacidade');
+    await launchUrl(uri, mode: LaunchMode.externalApplication);
   }
 }

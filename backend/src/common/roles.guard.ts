@@ -16,8 +16,8 @@ export class RolesGuard implements CanActivate {
 
     const req = ctx.switchToHttp().getRequest();
     const user = req.user as { nivelAcesso?: number } | undefined;
-
-    const current = user?.nivelAcesso ?? AccessLevel.USUARIO_PADRAO;
+    if (!user) return false;
+    const current = user.nivelAcesso ?? AccessLevel.USUARIO_PADRAO;
     return current >= minLevel;
   }
 }

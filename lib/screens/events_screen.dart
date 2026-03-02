@@ -24,7 +24,7 @@ class _EventsScreenState extends State<EventsScreen> {
   @override
   Widget build(BuildContext context) {
     final safeBottom = MediaQuery.paddingOf(context).bottom;
-    final bottomInset = widget.appState.isAdmin ? 146.0 : 104.0;
+    final bottomInset = 104.0;
     final events = _filter == null
         ? widget.appState.events
         : widget.appState.events.where((e) => e.tipo == _filter).toList();

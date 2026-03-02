@@ -23,9 +23,8 @@ class UserModel {
         return AppRole.coordenador;
       case 3:
         return AppRole.administrativo;
-      case 4:
       default:
-        return nivelAcesso >= 4 ? AppRole.padre : AppRole.usuarioPadrao;
+        return AppRole.usuarioPadrao;
     }
   }
 
@@ -76,8 +75,6 @@ class UserModel {
           AppCapability.setGroupPermissions,
           AppCapability.manageMassSchedules,
         };
-      case AppRole.padre:
-        return AppCapability.values.toSet();
     }
   }
 }

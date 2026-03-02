@@ -9,11 +9,13 @@ CREATE TABLE IF NOT EXISTS users (
   nome VARCHAR(120) NOT NULL,
   email VARCHAR(190) NOT NULL,
   senha_hash VARCHAR(255) NOT NULL,
+  refresh_token_hash VARCHAR(255) NULL,
   nivel_acesso TINYINT NOT NULL DEFAULT 0,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
-  UNIQUE KEY uq_users_email (email)
+  UNIQUE KEY uq_users_email (email),
+  CONSTRAINT chk_users_nivel_acesso CHECK (nivel_acesso BETWEEN 0 AND 3)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS groups (
@@ -136,4 +138,33 @@ CREATE TABLE IF NOT EXISTS schedules (
   CONSTRAINT fk_schedules_group
     FOREIGN KEY (group_id) REFERENCES groups(id)
     ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS mass_schedules (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  weekday TINYINT UNSIGNED NOT NULL,
+  time TIME NOT NULL,
+  location_name VARCHAR(160) NOT NULL,
+  is_active TINYINT NOT NULL DEFAULT 1,
+  notes TEXT NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  KEY idx_mass_schedules_weekday_time (weekday, time),
+  CONSTRAINT chk_mass_schedules_weekday CHECK (weekday BETWEEN 0 AND 6)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS office_hours (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  weekday TINYINT UNSIGNED NOT NULL,
+  open_time TIME NOT NULL,
+  close_time TIME NULL,
+  label VARCHAR(120) NOT NULL DEFAULT 'Secretaria',
+  is_active TINYINT NOT NULL DEFAULT 1,
+  notes TEXT NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  KEY idx_office_hours_weekday_open (weekday, open_time),
+  CONSTRAINT chk_office_hours_weekday CHECK (weekday BETWEEN 0 AND 6)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

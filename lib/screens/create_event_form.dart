@@ -23,6 +23,8 @@ class _CreateEventFormState extends State<CreateEventForm> {
   EventType _tipo = EventType.missa;
   String? _groupId;
   bool _publico = true;
+  bool _saving = false;
+  String? _error;
 
   @override
   Widget build(BuildContext context) {
@@ -115,27 +117,58 @@ class _CreateEventFormState extends State<CreateEventForm> {
           SizedBox(
             width: double.infinity,
             child: ElevatedButton(
-              onPressed: () {
-                widget.appState.addEvent(
-                  EventModel(
-                    id: DateTime.now().millisecondsSinceEpoch.toString(),
-                    nome: _nameCtrl.text.trim(),
-                    local: _localCtrl.text.trim(),
-                    dataHora: DateTime.now().add(const Duration(days: 1)),
-                    tipo: _tipo,
-                    groupId: _groupId,
-                    imagemUrl: _imageCtrl.text.trim().isEmpty ? null : _imageCtrl.text.trim(),
-                    linkExterno: _linkCtrl.text.trim().isEmpty ? null : _linkCtrl.text.trim(),
-                    publico: _publico || _groupId == null,
-                  ),
-                );
-                Navigator.pop(context);
-              },
-              child: const Text('Salvar'),
+              onPressed: _saving ? null : _submit,
+              child: _saving
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Text('Salvar'),
             ),
           ),
+          if (_error != null) ...[
+            const SizedBox(height: 8),
+            Text(
+              _error!,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: const Color(0xFFC62828),
+                  ),
+            ),
+          ],
         ],
       ),
     );
+  }
+
+  Future<void> _submit() async {
+    if (_saving) return;
+    setState(() {
+      _saving = true;
+      _error = null;
+    });
+
+    try {
+      await widget.appState.createEventItem(
+        nome: _nameCtrl.text.trim(),
+        local: _localCtrl.text.trim(),
+        tipo: _tipo,
+        groupId: _groupId,
+        imagemUrl: _imageCtrl.text.trim().isEmpty ? null : _imageCtrl.text.trim(),
+        linkExterno: _linkCtrl.text.trim().isEmpty ? null : _linkCtrl.text.trim(),
+        publico: _publico || _groupId == null,
+      );
+      if (!mounted) return;
+      Navigator.pop(context);
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _error = 'Não foi possível salvar evento.';
+      });
+    } finally {
+      if (mounted) {
+        setState(() => _saving = false);
+      }
+    }
   }
 }

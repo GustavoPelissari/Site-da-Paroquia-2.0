@@ -38,7 +38,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Widget build(BuildContext context) {
     final user = widget.appState.user;
     final safeBottom = MediaQuery.paddingOf(context).bottom;
-    final bottomInset = widget.appState.isAdmin ? 146.0 : 104.0;
+    final bottomInset = 104.0;
     final shouldShowBlockingLoading = widget.appState.isLoadingRemoteData;
     final shouldShowNonBlockingWarning = widget.appState.remoteError != null;
 
@@ -397,7 +397,5 @@ int _levelForRole(AppRole role) {
       return 2;
     case AppRole.administrativo:
       return 3;
-    case AppRole.padre:
-      return 4;
   }
 }

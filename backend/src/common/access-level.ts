@@ -3,5 +3,4 @@ export enum AccessLevel {
   MEMBRO_PASTORAL = 1,
   COORDENADOR = 2,
   ADMINISTRATIVO = 3,
-  PADRE = 4,
 }

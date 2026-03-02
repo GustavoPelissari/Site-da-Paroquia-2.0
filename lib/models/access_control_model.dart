@@ -3,7 +3,6 @@ enum AppRole {
   membroPastoral,
   coordenador,
   administrativo,
-  padre,
 }
 
 enum AppCapability {
@@ -34,8 +33,6 @@ extension AppRoleX on AppRole {
         return 'Coordenador';
       case AppRole.administrativo:
         return 'Administrativo';
-      case AppRole.padre:
-        return 'Padre';
     }
   }
 }

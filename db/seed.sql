@@ -1,15 +1,20 @@
 USE pdgp;
 
 -- Senha comum para testes: 123456
--- Hash bcrypt: $2b$10$A5iQFPeITM0R4MBefWfV2uCHqqPWfYQxJRf87R6xCw6lM5z4S7V6S
+-- Hash bcrypt: $2b$10$KzSNsO.C7Ly9/Rb.pli0suXbcwKRYJ60FV2y0R.ymuIJXaCEVRFD6
 
 INSERT INTO users (id, nome, email, senha_hash, nivel_acesso) VALUES
-  (1, 'Ana Fiel', 'ana.fiel@paroquia.local', '$2b$10$A5iQFPeITM0R4MBefWfV2uCHqqPWfYQxJRf87R6xCw6lM5z4S7V6S', 0),
-  (2, 'Bruno Membro', 'bruno.membro@paroquia.local', '$2b$10$A5iQFPeITM0R4MBefWfV2uCHqqPWfYQxJRf87R6xCw6lM5z4S7V6S', 1),
-  (3, 'Maria Coordenadora', 'maria.coordenadora@paroquia.local', '$2b$10$A5iQFPeITM0R4MBefWfV2uCHqqPWfYQxJRf87R6xCw6lM5z4S7V6S', 2),
-  (4, 'Carlos Administrativo', 'carlos.admin@paroquia.local', '$2b$10$A5iQFPeITM0R4MBefWfV2uCHqqPWfYQxJRf87R6xCw6lM5z4S7V6S', 3),
-  (5, 'Padre Jose', 'padre.jose@paroquia.local', '$2b$10$A5iQFPeITM0R4MBefWfV2uCHqqPWfYQxJRf87R6xCw6lM5z4S7V6S', 4)
-ON DUPLICATE KEY UPDATE email=email;
+  (1, 'Ana Fiel', 'ana.fiel@paroquia.local', '$2b$10$KzSNsO.C7Ly9/Rb.pli0suXbcwKRYJ60FV2y0R.ymuIJXaCEVRFD6', 0),
+  (2, 'Bruno Membro', 'bruno.membro@paroquia.local', '$2b$10$KzSNsO.C7Ly9/Rb.pli0suXbcwKRYJ60FV2y0R.ymuIJXaCEVRFD6', 1),
+  (3, 'Maria Coordenadora', 'maria.coordenadora@paroquia.local', '$2b$10$KzSNsO.C7Ly9/Rb.pli0suXbcwKRYJ60FV2y0R.ymuIJXaCEVRFD6', 2),
+  (4, 'Carlos Administrativo', 'carlos.admin@paroquia.local', '$2b$10$KzSNsO.C7Ly9/Rb.pli0suXbcwKRYJ60FV2y0R.ymuIJXaCEVRFD6', 3),
+  (5, 'Padre Jose', 'padre.jose@paroquia.local', '$2b$10$KzSNsO.C7Ly9/Rb.pli0suXbcwKRYJ60FV2y0R.ymuIJXaCEVRFD6', 3)
+ON DUPLICATE KEY UPDATE
+  nome = VALUES(nome),
+  email = VALUES(email),
+  senha_hash = VALUES(senha_hash),
+  nivel_acesso = VALUES(nivel_acesso),
+  refresh_token_hash = NULL;
 
 INSERT INTO groups (
   id, nome, descricao, coordenador_id,
@@ -111,3 +116,26 @@ INSERT INTO form_responses (form_id, user_id, respostas_json) VALUES
 INSERT INTO schedules (group_id, pdf_url, descricao) VALUES
   (2, 'https://paroquia.local/escala-coroinhas-abril.pdf', 'Escala mensal dos coroinhas'),
   (1, 'https://paroquia.local/escala-juventude-retiro.pdf', 'Escala de servico para retiro da juventude');
+
+INSERT INTO mass_schedules (weekday, time, location_name, is_active, notes) VALUES
+  (1, '06:00:00', 'Paroquia', 1, NULL),
+  (2, '06:00:00', 'Paroquia', 1, NULL),
+  (4, '06:00:00', 'Paroquia', 1, NULL),
+  (5, '06:00:00', 'Paroquia', 1, NULL),
+  (3, '06:30:00', 'Paroquia', 1, NULL),
+  (6, '18:00:00', 'Capela Nossa Senhora de Fatima', 1, NULL),
+  (6, '19:30:00', 'Paroquia', 1, NULL),
+  (0, '08:00:00', 'Capela Santo Antonio', 1, NULL),
+  (0, '09:30:00', 'Paroquia', 1, NULL),
+  (0, '18:00:00', 'Paroquia', 1, NULL);
+
+INSERT INTO office_hours (weekday, open_time, close_time, label, is_active, notes) VALUES
+  (1, '08:00:00', '12:00:00', 'Secretaria', 1, 'Atendimento da manha'),
+  (1, '13:30:00', '17:30:00', 'Secretaria', 1, 'Atendimento da tarde'),
+  (2, '08:00:00', '12:00:00', 'Secretaria', 1, 'Atendimento da manha'),
+  (2, '13:30:00', '17:30:00', 'Secretaria', 1, 'Atendimento da tarde'),
+  (3, '08:00:00', '12:00:00', 'Secretaria', 1, 'Atendimento da manha'),
+  (3, '13:30:00', '17:30:00', 'Secretaria', 1, 'Atendimento da tarde'),
+  (4, '08:00:00', '12:00:00', 'Secretaria', 1, 'Atendimento da manha'),
+  (4, '13:30:00', '17:30:00', 'Secretaria', 1, 'Atendimento da tarde'),
+  (5, '08:00:00', '12:00:00', 'Secretaria', 1, 'Atendimento da manha');

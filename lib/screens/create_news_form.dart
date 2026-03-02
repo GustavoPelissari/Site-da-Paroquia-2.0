@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../models/news_model.dart';
 import '../state/app_state.dart';
 
 class CreateNewsForm extends StatefulWidget {
@@ -22,6 +21,8 @@ class _CreateNewsFormState extends State<CreateNewsForm> {
   final _linkCtrl = TextEditingController();
   String? _groupId;
   bool _publico = true;
+  bool _saving = false;
+  String? _error;
 
   @override
   Widget build(BuildContext context) {
@@ -106,26 +107,57 @@ class _CreateNewsFormState extends State<CreateNewsForm> {
           SizedBox(
             width: double.infinity,
             child: ElevatedButton(
-              onPressed: () {
-                widget.appState.addNews(
-                  NewsModel(
-                    id: DateTime.now().millisecondsSinceEpoch.toString(),
-                    titulo: _titleCtrl.text.trim(),
-                    conteudo: _contentCtrl.text.trim(),
-                    dataPublicacao: DateTime.now(),
-                    groupId: _groupId,
-                    imagemUrl: _imageCtrl.text.trim().isEmpty ? null : _imageCtrl.text.trim(),
-                    linkExterno: _linkCtrl.text.trim().isEmpty ? null : _linkCtrl.text.trim(),
-                    publico: _publico || _groupId == null,
-                  ),
-                );
-                Navigator.pop(context);
-              },
-              child: const Text('Salvar'),
+              onPressed: _saving ? null : _submit,
+              child: _saving
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Text('Salvar'),
             ),
           ),
+          if (_error != null) ...[
+            const SizedBox(height: 8),
+            Text(
+              _error!,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: const Color(0xFFC62828),
+                  ),
+            ),
+          ],
         ],
       ),
     );
+  }
+
+  Future<void> _submit() async {
+    if (_saving) return;
+    setState(() {
+      _saving = true;
+      _error = null;
+    });
+
+    try {
+      await widget.appState.createNewsItem(
+        titulo: _titleCtrl.text.trim(),
+        conteudo: _contentCtrl.text.trim(),
+        groupId: _groupId,
+        imagemUrl: _imageCtrl.text.trim().isEmpty ? null : _imageCtrl.text.trim(),
+        linkExterno: _linkCtrl.text.trim().isEmpty ? null : _linkCtrl.text.trim(),
+        publico: _publico || _groupId == null,
+      );
+      if (!mounted) return;
+      Navigator.pop(context);
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _error = 'Não foi possível salvar notícia.';
+      });
+    } finally {
+      if (mounted) {
+        setState(() => _saving = false);
+      }
+    }
   }
 }
