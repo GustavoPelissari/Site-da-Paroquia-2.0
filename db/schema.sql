@@ -21,6 +21,10 @@ CREATE TABLE IF NOT EXISTS groups (
   nome VARCHAR(120) NOT NULL,
   descricao TEXT NULL,
   coordenador_id BIGINT UNSIGNED NULL,
+  permite_pdf_upload TINYINT NOT NULL DEFAULT 1,
+  permite_formularios TINYINT NOT NULL DEFAULT 1,
+  permite_noticias TINYINT NOT NULL DEFAULT 1,
+  permite_eventos TINYINT NOT NULL DEFAULT 1,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
@@ -30,11 +34,30 @@ CREATE TABLE IF NOT EXISTS groups (
     ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+CREATE TABLE IF NOT EXISTS group_members (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  group_id BIGINT UNSIGNED NOT NULL,
+  user_id BIGINT UNSIGNED NOT NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE KEY uq_group_membership (group_id, user_id),
+  KEY idx_group_members_group (group_id),
+  KEY idx_group_members_user (user_id),
+  CONSTRAINT fk_group_members_group
+    FOREIGN KEY (group_id) REFERENCES groups(id)
+    ON DELETE CASCADE,
+  CONSTRAINT fk_group_members_user
+    FOREIGN KEY (user_id) REFERENCES users(id)
+    ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 CREATE TABLE IF NOT EXISTS news (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   titulo VARCHAR(180) NOT NULL,
   conteudo LONGTEXT NOT NULL,
   imagem_url TEXT NULL,
+  link_externo TEXT NULL,
+  publico TINYINT NOT NULL DEFAULT 1,
   data_publicacao DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   group_id BIGINT UNSIGNED NULL,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -52,11 +75,19 @@ CREATE TABLE IF NOT EXISTS events (
   data_hora DATETIME NOT NULL,
   local VARCHAR(160) NOT NULL,
   tipo ENUM('MISSA','REUNIAO','FESTA') NOT NULL,
+  imagem_url TEXT NULL,
+  link_externo TEXT NULL,
+  publico TINYINT NOT NULL DEFAULT 1,
+  group_id BIGINT UNSIGNED NULL,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
   KEY idx_events_data (data_hora),
-  KEY idx_events_tipo (tipo)
+  KEY idx_events_tipo (tipo),
+  KEY idx_events_group (group_id),
+  CONSTRAINT fk_events_group
+    FOREIGN KEY (group_id) REFERENCES groups(id)
+    ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS forms (
@@ -65,9 +96,15 @@ CREATE TABLE IF NOT EXISTS forms (
   config_json JSON NOT NULL,
   visibilidade ENUM('PUBLICO','GRUPO','ADMIN') NOT NULL DEFAULT 'PUBLICO',
   consentimento_lgpd TINYINT NOT NULL DEFAULT 0,
+  ativo TINYINT NOT NULL DEFAULT 1,
+  group_id BIGINT UNSIGNED NULL,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  PRIMARY KEY (id)
+  PRIMARY KEY (id),
+  KEY idx_forms_group (group_id),
+  CONSTRAINT fk_forms_group
+    FOREIGN KEY (group_id) REFERENCES groups(id)
+    ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS form_responses (
@@ -91,6 +128,7 @@ CREATE TABLE IF NOT EXISTS schedules (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   group_id BIGINT UNSIGNED NOT NULL,
   pdf_url TEXT NOT NULL,
+  descricao TEXT NULL,
   data_upload DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (id),

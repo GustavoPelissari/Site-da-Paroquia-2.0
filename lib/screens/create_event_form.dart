@@ -4,12 +4,12 @@ import '../models/event_model.dart';
 import '../state/app_state.dart';
 
 class CreateEventForm extends StatefulWidget {
-  final AppState appState;
-
   const CreateEventForm({
     super.key,
     required this.appState,
   });
+
+  final AppState appState;
 
   @override
   State<CreateEventForm> createState() => _CreateEventFormState();
@@ -18,11 +18,19 @@ class CreateEventForm extends StatefulWidget {
 class _CreateEventFormState extends State<CreateEventForm> {
   final _nameCtrl = TextEditingController();
   final _localCtrl = TextEditingController();
+  final _imageCtrl = TextEditingController();
+  final _linkCtrl = TextEditingController();
   EventType _tipo = EventType.missa;
+  String? _groupId;
+  bool _publico = true;
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
+    final allowedGroups = widget.appState.groups
+        .where((g) => widget.appState.canCreateEventsForGroup(g.id))
+        .toList();
+
+    return SingleChildScrollView(
       padding: EdgeInsets.fromLTRB(
         16,
         16,
@@ -31,10 +39,11 @@ class _CreateEventFormState extends State<CreateEventForm> {
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             'Novo evento',
-            style: TextStyle(fontWeight: FontWeight.bold),
+            style: Theme.of(context).textTheme.titleLarge,
           ),
           const SizedBox(height: 12),
           TextField(
@@ -47,30 +56,83 @@ class _CreateEventFormState extends State<CreateEventForm> {
             decoration: const InputDecoration(labelText: 'Local'),
           ),
           const SizedBox(height: 8),
-          DropdownButton<EventType>(
-            value: _tipo,
+          DropdownButtonFormField<EventType>(
+            initialValue: _tipo,
+            decoration: const InputDecoration(
+              labelText: 'Tipo',
+              border: OutlineInputBorder(),
+            ),
             items: const [
               DropdownMenuItem(value: EventType.missa, child: Text('Missa')),
-              DropdownMenuItem(value: EventType.reuniao, child: Text('Reunião')),
+              DropdownMenuItem(value: EventType.reuniao, child: Text('Reuniao')),
               DropdownMenuItem(value: EventType.festa, child: Text('Festa')),
             ],
-            onChanged: (v) => setState(() => _tipo = v!),
+            onChanged: (value) => setState(() => _tipo = value ?? EventType.missa),
+          ),
+          const SizedBox(height: 8),
+          DropdownButtonFormField<String?>(
+            initialValue: _groupId,
+            decoration: const InputDecoration(
+              labelText: 'Grupo (opcional)',
+              border: OutlineInputBorder(),
+            ),
+            items: [
+              const DropdownMenuItem(value: null, child: Text('Evento geral')),
+              ...allowedGroups.map(
+                (group) => DropdownMenuItem(
+                  value: group.id,
+                  child: Text(group.nome),
+                ),
+              ),
+            ],
+            onChanged: (value) => setState(() => _groupId = value),
+          ),
+          const SizedBox(height: 8),
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            title: const Text('Visibilidade publica'),
+            subtitle: const Text('Desative para restringir ao grupo selecionado'),
+            value: _publico,
+            onChanged: (value) => setState(() => _publico = value),
+          ),
+          const SizedBox(height: 8),
+          TextField(
+            controller: _imageCtrl,
+            decoration: const InputDecoration(
+              labelText: 'URL da imagem (opcional)',
+              hintText: 'https://...',
+            ),
+          ),
+          const SizedBox(height: 8),
+          TextField(
+            controller: _linkCtrl,
+            decoration: const InputDecoration(
+              labelText: 'Link externo (opcional)',
+              hintText: 'https://...',
+            ),
           ),
           const SizedBox(height: 16),
-          ElevatedButton(
-            onPressed: () {
-              widget.appState.addEvent(
-                EventModel(
-                  id: DateTime.now().toString(),
-                  nome: _nameCtrl.text,
-                  local: _localCtrl.text,
-                  dataHora: DateTime.now().add(const Duration(days: 1)),
-                  tipo: _tipo,
-                ),
-              );
-              Navigator.pop(context);
-            },
-            child: const Text('Salvar'),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: () {
+                widget.appState.addEvent(
+                  EventModel(
+                    id: DateTime.now().millisecondsSinceEpoch.toString(),
+                    nome: _nameCtrl.text.trim(),
+                    local: _localCtrl.text.trim(),
+                    dataHora: DateTime.now().add(const Duration(days: 1)),
+                    tipo: _tipo,
+                    groupId: _groupId,
+                    imagemUrl: _imageCtrl.text.trim().isEmpty ? null : _imageCtrl.text.trim(),
+                    linkExterno: _linkCtrl.text.trim().isEmpty ? null : _linkCtrl.text.trim(),
+                    publico: _publico || _groupId == null,
+                  ),
+                );
+                Navigator.pop(context);
+              },
+              child: const Text('Salvar'),
+            ),
           ),
         ],
       ),

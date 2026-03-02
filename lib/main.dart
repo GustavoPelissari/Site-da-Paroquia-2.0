@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 
-import 'theme/app_theme.dart';
-import 'state/app_state.dart';
+import 'screens/login_screen.dart';
 import 'screens/main_shell_screen.dart';
+import 'state/app_state.dart';
+import 'theme/app_theme.dart';
+import 'widgets/app_loading_view.dart';
 
 void main() {
   runApp(const ParoquiaApp());
@@ -21,18 +23,31 @@ class _ParoquiaAppState extends State<ParoquiaApp> {
   @override
   void initState() {
     super.initState();
-    // Regra crítica do PDF: sincronizar o relógio com o servidor
-    // pra calcular "Próxima Missa" corretamente.
-    _appState.syncServerClock();
+    _appState.initialize();
   }
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      title: 'Paróquia MVP',
-      theme: AppTheme.lightTheme,
-      home: MainShellScreen(appState: _appState),
+    return AnimatedBuilder(
+      animation: _appState,
+      builder: (context, _) {
+        return MaterialApp(
+          debugShowCheckedModeBanner: false,
+          title: 'Paroquia MVP',
+          theme: AppTheme.lightTheme,
+          home: _root(),
+        );
+      },
     );
+  }
+
+  Widget _root() {
+    if (_appState.authLoading) {
+      return const Scaffold(body: AppLoadingView(message: 'Validando sessao...'));
+    }
+    if (!_appState.isAuthenticated) {
+      return LoginScreen(appState: _appState);
+    }
+    return MainShellScreen(appState: _appState);
   }
 }

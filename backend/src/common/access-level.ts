@@ -1,6 +1,7 @@
 export enum AccessLevel {
-  FIEL = 0,
-  ADMIN = 1,
+  USUARIO_PADRAO = 0,
+  MEMBRO_PASTORAL = 1,
   COORDENADOR = 2,
-  SUPERADMIN = 3,
+  ADMINISTRATIVO = 3,
+  PADRE = 4,
 }
