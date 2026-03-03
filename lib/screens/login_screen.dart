@@ -67,7 +67,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   const SizedBox(height: 18),
                   Text(
-                    'Paróquia São Paulo Apóstolo',
+                    'Paroquia Sao Paulo Apostolo',
                     textAlign: TextAlign.center,
                     style: Theme.of(context).textTheme.headlineMedium,
                   ),
@@ -156,7 +156,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                       TextButton(
                         onPressed: _loading ? null : _openPrivacyPolicy,
-                        child: const Text('Política de Privacidade'),
+                        child: const Text('Politica de Privacidade'),
                       ),
                     ],
                   ),
@@ -197,13 +197,38 @@ class _LoginScreenState extends State<LoginScreen> {
     });
   }
 
-  void _onForgotPassword() {
-    showDialog<void>(
+  Future<void> _onForgotPassword() async {
+    if (_loading) return;
+    final email = _emailCtrl.text.trim();
+    if (email.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Informe seu e-mail para recuperar a senha.')),
+      );
+      return;
+    }
+
+    setState(() {
+      _loading = true;
+    });
+    try {
+      await widget.appState.forgotPassword(email: email);
+    } catch (_) {
+      // Mensagem segue generica para evitar enumeracao de usuarios.
+    } finally {
+      if (mounted) {
+        setState(() {
+          _loading = false;
+        });
+      }
+    }
+
+    if (!mounted) return;
+    await showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Recuperar senha'),
         content: const Text(
-          'Solicite redefinição de senha com a secretaria paroquial até o módulo de recuperação ser publicado.',
+          'Se o e-mail estiver cadastrado, voce recebera instrucoes para redefinir sua senha.',
         ),
         actions: [
           TextButton(

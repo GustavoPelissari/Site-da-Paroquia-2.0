@@ -83,6 +83,14 @@ DB_NAME=pdgp
 
 JWT_SECRET=troque-essa-chave-em-producao
 JWT_EXPIRES_IN=7d
+
+SMTP_HOST=127.0.0.1
+SMTP_PORT=1025
+SMTP_SECURE=false
+SMTP_USER=
+SMTP_PASS=
+SMTP_FROM=no-reply@paroquia.local
+RESET_PASSWORD_BASE_URL=http://localhost:3000/reset-password
 ```
 
 ### 4.2 Instalar e rodar
@@ -171,11 +179,34 @@ Em desktop/web Flutter, pode usar:
 - Refresh: `POST /api/auth/refresh`
 - Perfil autenticado: `GET /api/auth/me`
 - Logout: `POST /api/auth/logout`
+- Solicitar reset: `POST /api/auth/forgot-password`
+- Validar token reset: `GET /api/auth/reset-password/validate?token=...`
+- Confirmar reset: `POST /api/auth/reset-password`
 
 Tokens:
 
 - Access token JWT
 - Refresh token JWT (com hash no banco)
+
+Fluxo de reset:
+
+- Resposta generica no forgot-password (nao revela se email existe)
+- Token de uso unico com expiracao (tabela `password_reset_tokens`)
+- Senha alterada invalida refresh token anterior
+
+---
+
+## 7.1 Migration de reset de senha
+
+Rode tambem:
+
+1. `db/migrations/20260303_add_password_reset_tokens.sql`
+
+Exemplo:
+
+```powershell
+Get-Content .\db\migrations\20260303_add_password_reset_tokens.sql | & 'C:\xampp\mysql\bin\mysql.exe' -u root
+```
 
 ---
 

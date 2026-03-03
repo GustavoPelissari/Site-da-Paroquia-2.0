@@ -11,6 +11,9 @@ async function bootstrap() {
     origin: true,
     credentials: true,
   });
+  const helmetModule = require('helmet');
+  const helmetMiddleware = helmetModule.default ?? helmetModule;
+  app.use(helmetMiddleware());
 
   app.useGlobalPipes(
     new ValidationPipe({

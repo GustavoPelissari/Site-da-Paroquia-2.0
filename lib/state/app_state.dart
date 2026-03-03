@@ -184,6 +184,10 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> forgotPassword({required String email}) async {
+    await _api.forgotPassword(email: email.trim());
+  }
+
   Future<void> _clearSession() async {
     _currentUser = null;
     _token = null;

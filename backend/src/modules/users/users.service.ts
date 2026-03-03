@@ -38,4 +38,8 @@ export class UsersService {
   async clearRefreshTokenHash(userId: number) {
     await this.repo.update({ id: userId }, { refreshTokenHash: null });
   }
+
+  async updatePasswordHash(userId: number, senhaHash: string) {
+    await this.repo.update({ id: userId }, { senhaHash });
+  }
 }

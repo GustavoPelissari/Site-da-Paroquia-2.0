@@ -178,7 +178,8 @@ class ApiRepository {
 
   Future<UserModel> me() async {
     final uri = Uri.parse('$_effectiveBaseUrl/auth/me');
-    final response = await _client.get(uri, headers: _authHeaders());
+    final response =
+        await _client.get(uri, headers: _authHeaders()).timeout(const Duration(seconds: 8));
 
     if (response.statusCode != 200) {
       throw Exception('Sessao invalida');
@@ -194,7 +195,22 @@ class ApiRepository {
 
   Future<void> logout() async {
     final uri = Uri.parse('$_effectiveBaseUrl/auth/logout');
-    await _client.post(uri, headers: _authHeaders());
+    await _client.post(uri, headers: _authHeaders()).timeout(const Duration(seconds: 8));
+  }
+
+  Future<void> forgotPassword({required String email}) async {
+    final uri = Uri.parse('$_effectiveBaseUrl/auth/forgot-password');
+    final response = await _client
+        .post(
+          uri,
+          headers: {'content-type': 'application/json'},
+          body: jsonEncode({'email': email}),
+        )
+        .timeout(const Duration(seconds: 8));
+
+    if (response.statusCode != 201 && response.statusCode != 200) {
+      throw Exception('Falha ao solicitar redefinicao: ${response.statusCode}');
+    }
   }
 
   Future<DateTime> fetchServerNow() async {

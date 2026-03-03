@@ -13,6 +13,7 @@ import { MassScheduleEntity } from './modules/mass-schedules/mass-schedule.entit
 import { NewsEntity } from './modules/news/news.entity';
 import { OfficeHourEntity } from './modules/mass-schedules/office-hour.entity';
 import { UserEntity } from './modules/users/user.entity';
+import { PasswordResetTokenEntity } from './modules/auth/password-reset-token.entity';
 
 @Module({
   imports: [
@@ -27,7 +28,14 @@ import { UserEntity } from './modules/users/user.entity';
         username: cfg.get<string>('DB_USER'),
         password: cfg.get<string>('DB_PASS'),
         database: cfg.get<string>('DB_NAME'),
-        entities: [UserEntity, EventEntity, NewsEntity, MassScheduleEntity, OfficeHourEntity],
+        entities: [
+          UserEntity,
+          EventEntity,
+          NewsEntity,
+          MassScheduleEntity,
+          OfficeHourEntity,
+          PasswordResetTokenEntity,
+        ],
         synchronize: false,
         charset: 'utf8mb4',
       }),

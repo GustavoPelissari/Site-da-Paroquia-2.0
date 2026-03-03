@@ -1,15 +1,29 @@
-import { ConflictException, Injectable, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, UnauthorizedException } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
+import { createHash, randomBytes } from 'crypto';
+import { Repository } from 'typeorm';
 
 import { AccessLevel } from '../../common/access-level';
 import { UsersService } from '../users/users.service';
+import { PasswordResetTokenEntity } from './password-reset-token.entity';
+import { AuthMailService } from './auth-mail.service';
 
 @Injectable()
 export class AuthService {
+  private static readonly forgotPasswordResponse = {
+    message:
+      'Se o e-mail estiver cadastrado, voce recebera instrucoes para redefinir sua senha.',
+  };
+  private static readonly resetTokenTtlMinutes = 60;
+
   constructor(
     private readonly users: UsersService,
     private readonly jwt: JwtService,
+    private readonly mailService: AuthMailService,
+    @InjectRepository(PasswordResetTokenEntity)
+    private readonly resetTokens: Repository<PasswordResetTokenEntity>,
   ) {}
 
   async login(email: string, senha: string) {
@@ -60,6 +74,100 @@ export class AuthService {
 
   async logout(userId: number) {
     await this.users.clearRefreshTokenHash(userId);
+  }
+
+  async forgotPassword(input: {
+    email: string;
+    requestIp: string | null;
+    requestUserAgent: string | null;
+  }) {
+    const normalizedEmail = input.email.trim().toLowerCase();
+    const user = await this.users.findByEmail(normalizedEmail);
+    if (!user) {
+      return AuthService.forgotPasswordResponse;
+    }
+
+    const rawToken = randomBytes(32).toString('hex');
+    const tokenHash = this.hashToken(rawToken);
+    const expiresAt = new Date(Date.now() + AuthService.resetTokenTtlMinutes * 60_000);
+
+    const token = this.resetTokens.create({
+      userId: user.id,
+      tokenHash,
+      expiresAt,
+      usedAt: null,
+      requestIp: input.requestIp?.slice(0, 64) ?? null,
+      requestUserAgent: input.requestUserAgent?.slice(0, 255) ?? null,
+    });
+    await this.resetTokens.save(token);
+
+    await this.mailService.sendResetPasswordEmail({
+      to: user.email,
+      name: user.nome,
+      token: rawToken,
+      expiresInMinutes: AuthService.resetTokenTtlMinutes,
+    });
+
+    return AuthService.forgotPasswordResponse;
+  }
+
+  async validateResetToken(token?: string) {
+    if (!token) {
+      return { valid: false };
+    }
+    const hash = this.hashToken(token);
+    const entity = await this.resetTokens.findOne({
+      where: {
+        tokenHash: hash,
+      },
+    });
+    if (!entity || entity.usedAt || entity.expiresAt.getTime() < Date.now()) {
+      return { valid: false };
+    }
+    return { valid: true };
+  }
+
+  async resetPassword(input: { token: string; password: string; confirmPassword: string }) {
+    if (input.password !== input.confirmPassword) {
+      throw new BadRequestException('Senha e confirmacao precisam ser iguais.');
+    }
+
+    const tokenHash = this.hashToken(input.token);
+    const token = await this.resetTokens.findOne({
+      where: { tokenHash },
+    });
+
+    if (!token || token.usedAt || token.expiresAt.getTime() < Date.now()) {
+      throw new UnauthorizedException('Token de redefinicao invalido ou expirado.');
+    }
+
+    const user = await this.users.findById(token.userId);
+    if (!user) {
+      throw new UnauthorizedException('Token de redefinicao invalido ou expirado.');
+    }
+
+    const senhaHash = await bcrypt.hash(input.password, 10);
+    await this.users.updatePasswordHash(user.id, senhaHash);
+    await this.users.clearRefreshTokenHash(user.id);
+
+    token.usedAt = new Date();
+    await this.resetTokens.save(token);
+
+    await this.resetTokens
+      .createQueryBuilder()
+      .delete()
+      .from(PasswordResetTokenEntity)
+      .where('user_id = :userId', { userId: user.id })
+      .andWhere('used_at IS NULL')
+      .andWhere('expires_at < :now', { now: new Date() })
+      .execute();
+
+    await this.mailService.sendPasswordChangedEmail({
+      to: user.email,
+      name: user.nome,
+    });
+
+    return { message: 'Senha redefinida com sucesso. Faca login novamente.' };
   }
 
   private async validateUser(email: string, senha: string) {
@@ -122,5 +230,9 @@ export class AuthService {
         nivelAcesso: user.nivelAcesso,
       },
     };
+  }
+
+  private hashToken(token: string) {
+    return createHash('sha256').update(token).digest('hex');
   }
 }
