@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -17,10 +19,17 @@ class _LoginScreenState extends State<LoginScreen> {
   static const String _logoAssetPath =
       'web-next/public/img/IMAGEM DE SÃO PAULO APOSTOLO MONOCROMATICA.png';
 
-  final _emailCtrl = TextEditingController(text: 'maria.coordenadora@paroquia.local');
-  final _senhaCtrl = TextEditingController(text: '123456');
+  final _emailCtrl = TextEditingController();
+  final _senhaCtrl = TextEditingController();
   bool _loading = false;
   String? _error;
+
+  @override
+  void dispose() {
+    _emailCtrl.dispose();
+    _senhaCtrl.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -171,6 +180,23 @@ class _LoginScreenState extends State<LoginScreen> {
 
   Future<void> _submit() async {
     if (_loading) return;
+    final email = _emailCtrl.text.trim();
+    final senha = _senhaCtrl.text;
+
+    if (email.isEmpty || senha.isEmpty) {
+      setState(() {
+        _error = 'Informe email e senha para continuar.';
+      });
+      return;
+    }
+
+    const emailPattern = r'^[^\s@]+@[^\s@]+\.[^\s@]+$';
+    if (!RegExp(emailPattern).hasMatch(email)) {
+      setState(() {
+        _error = 'Informe um email valido.';
+      });
+      return;
+    }
 
     setState(() {
       _loading = true;
@@ -180,10 +206,13 @@ class _LoginScreenState extends State<LoginScreen> {
     try {
       ok = await widget.appState
           .login(
-            email: _emailCtrl.text.trim(),
-            senha: _senhaCtrl.text,
+            email: email,
+            senha: senha,
           )
           .timeout(const Duration(seconds: 20));
+    } on TimeoutException {
+      _error = 'Servidor indisponivel no momento. Tente novamente em instantes.';
+      ok = false;
     } catch (_) {
       ok = false;
     }
@@ -192,7 +221,8 @@ class _LoginScreenState extends State<LoginScreen> {
       _loading = false;
       _error = ok
           ? null
-          : (widget.appState.authError ??
+          : (_error ??
+              widget.appState.authError ??
               'Falha no login. Verifique servidor/API e tente novamente.');
     });
   }
@@ -210,10 +240,11 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() {
       _loading = true;
     });
+    String? requestError;
     try {
       await widget.appState.forgotPassword(email: email);
-    } catch (_) {
-      // Mensagem segue generica para evitar enumeracao de usuarios.
+    } catch (e) {
+      requestError = '$e';
     } finally {
       if (mounted) {
         setState(() {
@@ -223,6 +254,12 @@ class _LoginScreenState extends State<LoginScreen> {
     }
 
     if (!mounted) return;
+    if (requestError != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Nao foi possivel solicitar recuperacao: $requestError')),
+      );
+      return;
+    }
     await showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
@@ -242,6 +279,11 @@ class _LoginScreenState extends State<LoginScreen> {
 
   Future<void> _openPrivacyPolicy() async {
     final uri = Uri.parse('https://paroquia.local/politica-de-privacidade');
-    await launchUrl(uri, mode: LaunchMode.externalApplication);
+    final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
+    if (!opened && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Nao foi possivel abrir a politica de privacidade.')),
+      );
+    }
   }
 }

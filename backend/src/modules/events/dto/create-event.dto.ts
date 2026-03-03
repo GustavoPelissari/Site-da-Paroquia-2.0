@@ -23,6 +23,12 @@ export class CreateEventDto {
 
   @IsOptional()
   @IsString()
+  @MaxLength(12000)
+  @Transform(({ value }) => (value ? String(value).trim() : undefined))
+  descricao?: string;
+
+  @IsOptional()
+  @IsString()
   @MaxLength(2048)
   @Transform(({ value }) => (value ? String(value).trim() : undefined))
   imagemUrl?: string;

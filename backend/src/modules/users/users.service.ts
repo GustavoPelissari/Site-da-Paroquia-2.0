@@ -42,4 +42,22 @@ export class UsersService {
   async updatePasswordHash(userId: number, senhaHash: string) {
     await this.repo.update({ id: userId }, { senhaHash });
   }
+
+  async listUsers() {
+    return this.repo.find({
+      order: {
+        nome: 'ASC',
+      },
+    });
+  }
+
+  async updateAccessLevel(userId: number, nivelAcesso: number) {
+    await this.repo.update({ id: userId }, { nivelAcesso });
+    return this.findById(userId);
+  }
+
+  async deleteUser(userId: number) {
+    const result = await this.repo.delete({ id: userId });
+    return (result.affected ?? 0) > 0;
+  }
 }

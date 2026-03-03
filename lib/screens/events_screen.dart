@@ -5,6 +5,7 @@ import '../state/app_state.dart';
 import '../theme/app_theme.dart';
 import '../widgets/app_empty_state.dart';
 import '../widgets/app_loading_view.dart';
+import 'content_detail_page.dart';
 
 class EventsScreen extends StatefulWidget {
   const EventsScreen({
@@ -82,6 +83,7 @@ class _EventsScreenState extends State<EventsScreen> {
               local: event.local,
               icon: _eventIcon(event.tipo),
               imageUrl: event.imagemUrl,
+              heroTag: 'event-${event.id}',
               externalLink: event.linkExterno,
               onTap: () => _openEventDetail(context, event),
             ),
@@ -92,14 +94,27 @@ class _EventsScreenState extends State<EventsScreen> {
   }
 
   void _openEventDetail(BuildContext context, EventModel event) {
-    showModalBottomSheet(
-      context: context,
-      showDragHandle: true,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+    final description = (event.descricao != null && event.descricao!.trim().isNotEmpty)
+        ? event.descricao!
+        : 'Evento sem descricao detalhada cadastrada no momento.';
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ContentDetailPage(
+          title: event.nome,
+          description: description,
+          imageUrl: event.imagemUrl,
+          heroTag: 'event-${event.id}',
+          metadata: [
+            _eventLabel(event.tipo),
+            _formatDate(event.dataHora),
+            event.local,
+          ],
+          externalLink: event.linkExterno,
+          externalLinkLabel: 'Abrir link externo',
+        ),
       ),
-      builder: (_) => _EventDetailSheet(event: event),
     );
   }
 }
@@ -231,6 +246,7 @@ class _EventCard extends StatelessWidget {
     required this.local,
     required this.icon,
     required this.imageUrl,
+    required this.heroTag,
     required this.externalLink,
     required this.onTap,
   });
@@ -241,6 +257,7 @@ class _EventCard extends StatelessWidget {
   final String local;
   final IconData icon;
   final String? imageUrl;
+  final String heroTag;
   final String? externalLink;
   final VoidCallback onTap;
 
@@ -272,15 +289,18 @@ class _EventCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 if (imageUrl != null && imageUrl!.isNotEmpty) ...[
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(12),
-                    child: AspectRatio(
-                      aspectRatio: 16 / 9,
-                      child: Image.network(
-                        imageUrl!,
-                        fit: BoxFit.cover,
-                        filterQuality: FilterQuality.medium,
-                        errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                  Hero(
+                    tag: heroTag,
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: AspectRatio(
+                        aspectRatio: 16 / 9,
+                        child: Image.network(
+                          imageUrl!,
+                          fit: BoxFit.cover,
+                          filterQuality: FilterQuality.medium,
+                          errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                        ),
                       ),
                     ),
                   ),
@@ -363,81 +383,3 @@ class _EventCard extends StatelessWidget {
   }
 }
 
-class _EventDetailSheet extends StatelessWidget {
-  const _EventDetailSheet({required this.event});
-
-  final EventModel event;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 12, 20, 26),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            event.nome,
-            style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.w700,
-                ),
-          ),
-          const SizedBox(height: 12),
-          _DetailRow(
-            label: 'Tipo',
-            value: _eventLabel(event.tipo),
-          ),
-          _DetailRow(
-            label: 'Data e hora',
-            value: _formatDate(event.dataHora),
-          ),
-          _DetailRow(
-            label: 'Local',
-            value: event.local,
-          ),
-          if (event.linkExterno != null && event.linkExterno!.isNotEmpty)
-            _DetailRow(
-              label: 'Link',
-              value: event.linkExterno!,
-            ),
-        ],
-      ),
-    );
-  }
-}
-
-class _DetailRow extends StatelessWidget {
-  const _DetailRow({
-    required this.label,
-    required this.value,
-  });
-
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: RichText(
-        text: TextSpan(
-          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: const Color(0xFF6A6361),
-              ),
-          children: [
-            TextSpan(
-              text: '$label: ',
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
-                    color: AppTheme.vinhoParoquial,
-                  ),
-            ),
-            TextSpan(
-              text: value,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}

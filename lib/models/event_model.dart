@@ -6,6 +6,7 @@ class EventModel {
   final DateTime dataHora;
   final String local;
   final EventType tipo;
+  final String? descricao;
   final String? groupId;
   final String? imagemUrl;
   final String? linkExterno;
@@ -17,6 +18,7 @@ class EventModel {
     required this.dataHora,
     required this.local,
     required this.tipo,
+    this.descricao,
     this.groupId,
     this.imagemUrl,
     this.linkExterno,

@@ -1,9 +1,11 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
 import '../models/event_model.dart';
+import '../models/mail_settings_model.dart';
 import '../models/news_model.dart';
 import '../models/parish_info_model.dart';
 import '../models/user_model.dart';
@@ -33,6 +35,12 @@ class ApiRepository {
       return 'http://10.0.2.2:3001/api';
     }
     return 'http://localhost:3001/api';
+  }
+
+  String get _baseOrigin {
+    final uri = Uri.parse(_effectiveBaseUrl);
+    final portPart = uri.hasPort ? ':${uri.port}' : '';
+    return '${uri.scheme}://${uri.host}$portPart';
   }
 
   Future<List<EventModel>> fetchEvents() async {
@@ -81,6 +89,7 @@ class ApiRepository {
     required String nome,
     required String local,
     required EventType tipo,
+    String? descricao,
     String? groupId,
     String? imagemUrl,
     String? linkExterno,
@@ -95,6 +104,7 @@ class ApiRepository {
             'nome': nome,
             'local': local,
             'tipo': _eventTypeToApi(tipo),
+            'descricao': descricao,
             'dataHora': DateTime.now().add(const Duration(days: 1)).toIso8601String(),
             'groupId': groupId == null ? null : int.tryParse(groupId),
             'imagemUrl': imagemUrl,
@@ -126,7 +136,7 @@ class ApiRepository {
         .timeout(const Duration(seconds: 8));
 
     if (response.statusCode != 201 && response.statusCode != 200) {
-      throw Exception('Falha no login: ${response.statusCode}');
+      throw Exception(_extractApiError(response, fallback: 'Falha no login'));
     }
 
     return _parseSessionResponse(response.body);
@@ -193,6 +203,110 @@ class ApiRepository {
     );
   }
 
+  Future<List<UserModel>> fetchUsers() async {
+    final uri = Uri.parse('$_effectiveBaseUrl/users');
+    final response =
+        await _client.get(uri, headers: _authHeaders()).timeout(const Duration(seconds: 8));
+
+    if (response.statusCode != 200) {
+      throw Exception('Falha ao carregar usuarios: ${response.statusCode}');
+    }
+
+    final raw = jsonDecode(response.body);
+    if (raw is! List) {
+      throw Exception('Resposta invalida de /users');
+    }
+
+    return raw.whereType<Map<String, dynamic>>().map((item) {
+      return UserModel(
+        id: '${item['id']}',
+        nome: item['nome'] as String? ?? '',
+        email: item['email'] as String? ?? '',
+        nivelAcesso: (item['nivelAcesso'] as num?)?.toInt() ?? 0,
+      );
+    }).toList();
+  }
+
+  Future<UserModel> updateUserAccessLevel({
+    required String userId,
+    required int nivelAcesso,
+  }) async {
+    final id = int.tryParse(userId);
+    if (id == null) {
+      throw Exception('Id de usuario invalido.');
+    }
+
+    final uri = Uri.parse('$_effectiveBaseUrl/users/$id/access-level');
+    final response = await _client
+        .patch(
+          uri,
+          headers: _authHeaders(),
+          body: jsonEncode({'nivelAcesso': nivelAcesso}),
+        )
+        .timeout(const Duration(seconds: 8));
+
+    if (response.statusCode != 200) {
+      throw Exception('Falha ao atualizar nivel de acesso: ${response.statusCode}');
+    }
+
+    final raw = jsonDecode(response.body) as Map<String, dynamic>;
+    return UserModel(
+      id: '${raw['id']}',
+      nome: raw['nome'] as String? ?? '',
+      email: raw['email'] as String? ?? '',
+      nivelAcesso: (raw['nivelAcesso'] as num?)?.toInt() ?? 0,
+    );
+  }
+
+  Future<UserModel> createUserByAdmin({
+    required String nome,
+    required String email,
+    required String senha,
+    required int nivelAcesso,
+  }) async {
+    final uri = Uri.parse('$_effectiveBaseUrl/users');
+    final response = await _client
+        .post(
+          uri,
+          headers: _authHeaders(),
+          body: jsonEncode({
+            'nome': nome,
+            'email': email.trim().toLowerCase(),
+            'senha': senha,
+            'nivelAcesso': nivelAcesso,
+          }),
+        )
+        .timeout(const Duration(seconds: 8));
+
+    if (response.statusCode != 201 && response.statusCode != 200) {
+      throw Exception(_extractApiError(response, fallback: 'Falha ao criar usuario'));
+    }
+
+    final raw = jsonDecode(response.body) as Map<String, dynamic>;
+    return UserModel(
+      id: '${raw['id']}',
+      nome: raw['nome'] as String? ?? '',
+      email: raw['email'] as String? ?? '',
+      nivelAcesso: (raw['nivelAcesso'] as num?)?.toInt() ?? 0,
+    );
+  }
+
+  Future<void> deleteUserByAdmin({required String userId}) async {
+    final id = int.tryParse(userId);
+    if (id == null) {
+      throw Exception('Id de usuario invalido.');
+    }
+
+    final uri = Uri.parse('$_effectiveBaseUrl/users/$id');
+    final response = await _client
+        .delete(uri, headers: _authHeaders())
+        .timeout(const Duration(seconds: 8));
+
+    if (response.statusCode != 200) {
+      throw Exception(_extractApiError(response, fallback: 'Falha ao excluir usuario'));
+    }
+  }
+
   Future<void> logout() async {
     final uri = Uri.parse('$_effectiveBaseUrl/auth/logout');
     await _client.post(uri, headers: _authHeaders()).timeout(const Duration(seconds: 8));
@@ -211,6 +325,86 @@ class ApiRepository {
     if (response.statusCode != 201 && response.statusCode != 200) {
       throw Exception('Falha ao solicitar redefinicao: ${response.statusCode}');
     }
+  }
+
+  Future<MailSettingsModel> fetchMailSettings() async {
+    final uri = Uri.parse('$_effectiveBaseUrl/auth/admin/mail-settings');
+    final response =
+        await _client.get(uri, headers: _authHeaders()).timeout(const Duration(seconds: 8));
+
+    if (response.statusCode != 200) {
+      throw Exception(_extractApiError(response, fallback: 'Falha ao carregar configuracao de email'));
+    }
+
+    final raw = jsonDecode(response.body) as Map<String, dynamic>;
+    final configured = _asBool(raw['configured']);
+    if (!configured) {
+      return const MailSettingsModel(configured: false);
+    }
+
+    return MailSettingsModel(
+      configured: configured,
+      host: raw['host'] as String?,
+      port: (raw['port'] as num?)?.toInt() ?? 587,
+      secure: _asBool(raw['secure']),
+      username: raw['username'] as String?,
+      hasPassword: _asBool(raw['hasPassword']),
+      fromEmail: raw['fromEmail'] as String?,
+      fromName: raw['fromName'] as String?,
+      resetBaseUrl: raw['resetBaseUrl'] as String?,
+      updatedAt: raw['updatedAt'] != null ? DateTime.tryParse(raw['updatedAt'].toString()) : null,
+    );
+  }
+
+  Future<MailSettingsModel> updateMailSettings({
+    required String host,
+    required int port,
+    required bool secure,
+    String? username,
+    String? password,
+    required String fromEmail,
+    String? fromName,
+    String? resetBaseUrl,
+  }) async {
+    final uri = Uri.parse('$_effectiveBaseUrl/auth/admin/mail-settings');
+    final payload = <String, dynamic>{
+      'host': host.trim(),
+      'port': port,
+      'secure': secure,
+      'username': username?.trim().isEmpty == true ? null : username?.trim(),
+      'fromEmail': fromEmail.trim(),
+      'fromName': fromName?.trim().isEmpty == true ? null : fromName?.trim(),
+      'resetBaseUrl': resetBaseUrl?.trim().isEmpty == true ? null : resetBaseUrl?.trim(),
+    };
+    if (password != null) {
+      payload['password'] = password.trim().isEmpty ? null : password;
+    }
+
+    final response = await _client
+        .put(
+          uri,
+          headers: _authHeaders(),
+          body: jsonEncode(payload),
+        )
+        .timeout(const Duration(seconds: 8));
+
+    if (response.statusCode != 200) {
+      throw Exception(_extractApiError(response, fallback: 'Falha ao salvar configuracao de email'));
+    }
+
+    final raw = jsonDecode(response.body) as Map<String, dynamic>;
+    return MailSettingsModel(
+      configured: _asBool(raw['configured']),
+      host: raw['host'] as String?,
+      port: (raw['port'] as num?)?.toInt() ?? 587,
+      secure: _asBool(raw['secure']),
+      username: raw['username'] as String?,
+      hasPassword: _asBool(raw['hasPassword']),
+      fromEmail: raw['fromEmail'] as String?,
+      fromName: raw['fromName'] as String?,
+      resetBaseUrl: raw['resetBaseUrl'] as String?,
+      updatedAt: raw['updatedAt'] != null ? DateTime.tryParse(raw['updatedAt'].toString()) : null,
+    );
   }
 
   Future<DateTime> fetchServerNow() async {
@@ -241,17 +435,7 @@ class ApiRepository {
     final raw = jsonDecode(response.body);
     if (raw is! List) throw Exception('Resposta invalida de /public/mass-schedules');
 
-    return raw.whereType<Map<String, dynamic>>().map((item) {
-      return MassScheduleModel(
-        id: '${item['id']}',
-        weekday: (item['weekday'] as num?)?.toInt() ?? 0,
-        weekdayLabel: item['weekdayLabel'] as String? ?? '',
-        time: item['time'] as String? ?? '',
-        locationName: item['locationName'] as String? ?? '',
-        isActive: _asBool(item['isActive']),
-        notes: item['notes'] as String?,
-      );
-    }).toList();
+    return raw.whereType<Map<String, dynamic>>().map(_massScheduleFromJson).toList();
   }
 
   Future<List<OfficeHourModel>> fetchPublicOfficeHours() async {
@@ -265,18 +449,184 @@ class ApiRepository {
     final raw = jsonDecode(response.body);
     if (raw is! List) throw Exception('Resposta invalida de /public/office-hours');
 
-    return raw.whereType<Map<String, dynamic>>().map((item) {
-      return OfficeHourModel(
-        id: '${item['id']}',
-        weekday: (item['weekday'] as num?)?.toInt() ?? 0,
-        weekdayLabel: item['weekdayLabel'] as String? ?? '',
-        openTime: item['openTime'] as String? ?? '',
-        closeTime: item['closeTime'] as String?,
-        label: item['label'] as String? ?? 'Secretaria',
-        isActive: _asBool(item['isActive']),
-        notes: item['notes'] as String?,
+    return raw.whereType<Map<String, dynamic>>().map(_officeHourFromJson).toList();
+  }
+
+  Future<MassScheduleModel> createMassSchedule({
+    required int weekday,
+    required String time,
+    required String locationName,
+    String? notes,
+  }) async {
+    final uri = Uri.parse('$_effectiveBaseUrl/mass-schedules');
+    final response = await _client
+        .post(
+          uri,
+          headers: _authHeaders(),
+          body: jsonEncode({
+            'weekday': weekday,
+            'time': time,
+            'locationName': locationName,
+            'notes': notes?.trim().isEmpty == true ? null : notes?.trim(),
+            'isActive': 1,
+          }),
+        )
+        .timeout(const Duration(seconds: 8));
+
+    if (response.statusCode != 201 && response.statusCode != 200) {
+      throw Exception(_extractApiError(response, fallback: 'Falha ao criar horario de missa'));
+    }
+
+    return _massScheduleFromJson(jsonDecode(response.body) as Map<String, dynamic>);
+  }
+
+  Future<MassScheduleModel> updateMassSchedule({
+    required String id,
+    required int weekday,
+    required String time,
+    required String locationName,
+    String? notes,
+  }) async {
+    final parsedId = int.tryParse(id);
+    if (parsedId == null) throw Exception('Id de horario invalido.');
+
+    final uri = Uri.parse('$_effectiveBaseUrl/mass-schedules/$parsedId');
+    final response = await _client
+        .patch(
+          uri,
+          headers: _authHeaders(),
+          body: jsonEncode({
+            'weekday': weekday,
+            'time': time,
+            'locationName': locationName,
+            'notes': notes?.trim().isEmpty == true ? null : notes?.trim(),
+            'isActive': 1,
+          }),
+        )
+        .timeout(const Duration(seconds: 8));
+
+    if (response.statusCode != 200) {
+      throw Exception(_extractApiError(response, fallback: 'Falha ao atualizar horario de missa'));
+    }
+
+    return _massScheduleFromJson(jsonDecode(response.body) as Map<String, dynamic>);
+  }
+
+  Future<void> deactivateMassSchedule({required String id}) async {
+    final parsedId = int.tryParse(id);
+    if (parsedId == null) throw Exception('Id de horario invalido.');
+
+    final uri = Uri.parse('$_effectiveBaseUrl/mass-schedules/$parsedId/deactivate');
+    final response =
+        await _client.patch(uri, headers: _authHeaders()).timeout(const Duration(seconds: 8));
+
+    if (response.statusCode != 200) {
+      throw Exception(_extractApiError(response, fallback: 'Falha ao desativar horario de missa'));
+    }
+  }
+
+  Future<OfficeHourModel> createOfficeHour({
+    required int weekday,
+    required String openTime,
+    String? closeTime,
+    String? label,
+    String? notes,
+  }) async {
+    final uri = Uri.parse('$_effectiveBaseUrl/office-hours');
+    final response = await _client
+        .post(
+          uri,
+          headers: _authHeaders(),
+          body: jsonEncode({
+            'weekday': weekday,
+            'openTime': openTime,
+            'closeTime': closeTime?.trim().isEmpty == true ? null : closeTime?.trim(),
+            'label': label?.trim().isEmpty == true ? 'Secretaria' : label?.trim(),
+            'notes': notes?.trim().isEmpty == true ? null : notes?.trim(),
+            'isActive': 1,
+          }),
+        )
+        .timeout(const Duration(seconds: 8));
+
+    if (response.statusCode != 201 && response.statusCode != 200) {
+      throw Exception(_extractApiError(response, fallback: 'Falha ao criar horario de secretaria'));
+    }
+
+    return _officeHourFromJson(jsonDecode(response.body) as Map<String, dynamic>);
+  }
+
+  Future<OfficeHourModel> updateOfficeHour({
+    required String id,
+    required int weekday,
+    required String openTime,
+    String? closeTime,
+    String? label,
+    String? notes,
+  }) async {
+    final parsedId = int.tryParse(id);
+    if (parsedId == null) throw Exception('Id de horario invalido.');
+
+    final uri = Uri.parse('$_effectiveBaseUrl/office-hours/$parsedId');
+    final response = await _client
+        .patch(
+          uri,
+          headers: _authHeaders(),
+          body: jsonEncode({
+            'weekday': weekday,
+            'openTime': openTime,
+            'closeTime': closeTime?.trim().isEmpty == true ? null : closeTime?.trim(),
+            'label': label?.trim().isEmpty == true ? 'Secretaria' : label?.trim(),
+            'notes': notes?.trim().isEmpty == true ? null : notes?.trim(),
+            'isActive': 1,
+          }),
+        )
+        .timeout(const Duration(seconds: 8));
+
+    if (response.statusCode != 200) {
+      throw Exception(_extractApiError(response, fallback: 'Falha ao atualizar horario de secretaria'));
+    }
+
+    return _officeHourFromJson(jsonDecode(response.body) as Map<String, dynamic>);
+  }
+
+  Future<void> deactivateOfficeHour({required String id}) async {
+    final parsedId = int.tryParse(id);
+    if (parsedId == null) throw Exception('Id de horario invalido.');
+
+    final uri = Uri.parse('$_effectiveBaseUrl/office-hours/$parsedId/deactivate');
+    final response =
+        await _client.patch(uri, headers: _authHeaders()).timeout(const Duration(seconds: 8));
+
+    if (response.statusCode != 200) {
+      throw Exception(
+        _extractApiError(response, fallback: 'Falha ao desativar horario de secretaria'),
       );
-    }).toList();
+    }
+  }
+
+  Future<String> uploadImageFile({required File file}) async {
+    final uri = Uri.parse('$_effectiveBaseUrl/uploads/image');
+    final request = http.MultipartRequest('POST', uri);
+    if (_sessionToken != null) {
+      request.headers['authorization'] = 'Bearer $_sessionToken';
+    }
+    request.files.add(await http.MultipartFile.fromPath('file', file.path));
+
+    final streamed = await request.send().timeout(const Duration(seconds: 20));
+    final response = await http.Response.fromStream(streamed);
+    if (response.statusCode != 201 && response.statusCode != 200) {
+      throw Exception(_extractApiError(response, fallback: 'Falha no upload da imagem'));
+    }
+
+    final raw = jsonDecode(response.body) as Map<String, dynamic>;
+    final url = raw['url'] as String?;
+    if (url == null || url.trim().isEmpty) {
+      throw Exception('Resposta invalida do upload.');
+    }
+    if (url.startsWith('http://') || url.startsWith('https://')) {
+      return url;
+    }
+    return '$_baseOrigin${url.startsWith('/') ? '' : '/'}$url';
   }
 
   Future<NextMassModel> fetchNextMass() async {
@@ -372,6 +722,7 @@ class ApiRepository {
       dataHora: DateTime.parse(raw['dataHora'] as String),
       local: raw['local'] as String? ?? '',
       tipo: type,
+      descricao: raw['descricao'] as String?,
       groupId: raw['groupId']?.toString(),
       imagemUrl: raw['imagemUrl'] as String?,
       linkExterno: raw['linkExterno'] as String?,
@@ -406,5 +757,59 @@ class ApiRepository {
     if (value is num) return value != 0;
     if (value is String) return value == '1' || value.toLowerCase() == 'true';
     return true;
+  }
+
+  MassScheduleModel _massScheduleFromJson(Map<String, dynamic> item) {
+    return MassScheduleModel(
+      id: '${item['id']}',
+      weekday: (item['weekday'] as num?)?.toInt() ?? 0,
+      weekdayLabel: item['weekdayLabel'] as String? ?? '',
+      time: item['time'] as String? ?? '',
+      locationName: item['locationName'] as String? ?? '',
+      isActive: _asBool(item['isActive']),
+      notes: item['notes'] as String?,
+    );
+  }
+
+  OfficeHourModel _officeHourFromJson(Map<String, dynamic> item) {
+    return OfficeHourModel(
+      id: '${item['id']}',
+      weekday: (item['weekday'] as num?)?.toInt() ?? 0,
+      weekdayLabel: item['weekdayLabel'] as String? ?? '',
+      openTime: item['openTime'] as String? ?? '',
+      closeTime: item['closeTime'] as String?,
+      label: item['label'] as String? ?? 'Secretaria',
+      isActive: _asBool(item['isActive']),
+      notes: item['notes'] as String?,
+    );
+  }
+
+  String _extractApiError(http.Response response, {required String fallback}) {
+    try {
+      final raw = jsonDecode(response.body);
+      if (raw is Map<String, dynamic>) {
+        final message = raw['message'];
+        if (message is String && message.trim().isNotEmpty) {
+          return message.trim();
+        }
+        if (message is List && message.isNotEmpty) {
+          final first = message.first;
+          if (first is String && first.trim().isNotEmpty) {
+            return first.trim();
+          }
+        }
+        final error = raw['error'];
+        if (error is String && error.trim().isNotEmpty) {
+          return '$fallback: ${error.trim()}';
+        }
+      }
+    } catch (_) {}
+    if (response.statusCode == HttpStatus.unauthorized) {
+      return 'Credenciais invalidas.';
+    }
+    if (response.statusCode == HttpStatus.forbidden) {
+      return 'Sem permissao para esta operacao.';
+    }
+    return '$fallback (${response.statusCode})';
   }
 }

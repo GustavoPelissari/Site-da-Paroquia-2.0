@@ -11,7 +11,7 @@ import { MassSchedulesService } from './mass-schedules.service';
 
 @Controller()
 @UseGuards(JwtAuthGuard, RolesGuard)
-@MinAccessLevel(AccessLevel.MEMBRO_PASTORAL)
+@MinAccessLevel(AccessLevel.ADMINISTRATIVO)
 export class MassSchedulesController {
   constructor(private readonly schedules: MassSchedulesService) {}
 

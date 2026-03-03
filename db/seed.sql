@@ -8,7 +8,12 @@ INSERT INTO users (id, nome, email, senha_hash, nivel_acesso) VALUES
   (2, 'Bruno Membro', 'bruno.membro@paroquia.local', '$2b$10$KzSNsO.C7Ly9/Rb.pli0suXbcwKRYJ60FV2y0R.ymuIJXaCEVRFD6', 1),
   (3, 'Maria Coordenadora', 'maria.coordenadora@paroquia.local', '$2b$10$KzSNsO.C7Ly9/Rb.pli0suXbcwKRYJ60FV2y0R.ymuIJXaCEVRFD6', 2),
   (4, 'Carlos Administrativo', 'carlos.admin@paroquia.local', '$2b$10$KzSNsO.C7Ly9/Rb.pli0suXbcwKRYJ60FV2y0R.ymuIJXaCEVRFD6', 3),
-  (5, 'Padre Jose', 'padre.jose@paroquia.local', '$2b$10$KzSNsO.C7Ly9/Rb.pli0suXbcwKRYJ60FV2y0R.ymuIJXaCEVRFD6', 3)
+  (5, 'Padre Jose', 'padre.jose@paroquia.local', '$2b$10$KzSNsO.C7Ly9/Rb.pli0suXbcwKRYJ60FV2y0R.ymuIJXaCEVRFD6', 3),
+  (6, 'Usuario Teste', 'usuario.teste@paroquia.local', '$2b$10$KzSNsO.C7Ly9/Rb.pli0suXbcwKRYJ60FV2y0R.ymuIJXaCEVRFD6', 3),
+  (7, 'Teste Nivel 0', 'teste.nivel0@paroquia.local', '$2b$10$KzSNsO.C7Ly9/Rb.pli0suXbcwKRYJ60FV2y0R.ymuIJXaCEVRFD6', 0),
+  (8, 'Teste Nivel 1', 'teste.nivel1@paroquia.local', '$2b$10$KzSNsO.C7Ly9/Rb.pli0suXbcwKRYJ60FV2y0R.ymuIJXaCEVRFD6', 1),
+  (9, 'Teste Nivel 2', 'teste.nivel2@paroquia.local', '$2b$10$KzSNsO.C7Ly9/Rb.pli0suXbcwKRYJ60FV2y0R.ymuIJXaCEVRFD6', 2),
+  (10, 'Teste Nivel 3', 'teste.nivel3@paroquia.local', '$2b$10$KzSNsO.C7Ly9/Rb.pli0suXbcwKRYJ60FV2y0R.ymuIJXaCEVRFD6', 3)
 ON DUPLICATE KEY UPDATE
   nome = VALUES(nome),
   email = VALUES(email),

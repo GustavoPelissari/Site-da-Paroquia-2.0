@@ -168,3 +168,18 @@ CREATE TABLE IF NOT EXISTS office_hours (
   KEY idx_office_hours_weekday_open (weekday, open_time),
   CONSTRAINT chk_office_hours_weekday CHECK (weekday BETWEEN 0 AND 6)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS smtp_settings (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  host VARCHAR(190) NOT NULL,
+  port INT UNSIGNED NOT NULL DEFAULT 587,
+  secure TINYINT NOT NULL DEFAULT 0,
+  username VARCHAR(190) NULL,
+  password VARCHAR(255) NULL,
+  from_email VARCHAR(190) NOT NULL,
+  from_name VARCHAR(120) NULL,
+  reset_base_url VARCHAR(255) NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

@@ -1,4 +1,8 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../state/app_state.dart';
 
@@ -19,10 +23,22 @@ class _CreateNewsFormState extends State<CreateNewsForm> {
   final _contentCtrl = TextEditingController();
   final _imageCtrl = TextEditingController();
   final _linkCtrl = TextEditingController();
+  final ImagePicker _imagePicker = ImagePicker();
+  File? _pickedImage;
   String? _groupId;
   bool _publico = true;
   bool _saving = false;
+  bool _uploadingImage = false;
   String? _error;
+
+  @override
+  void dispose() {
+    _titleCtrl.dispose();
+    _contentCtrl.dispose();
+    _imageCtrl.dispose();
+    _linkCtrl.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -85,14 +101,48 @@ class _CreateNewsFormState extends State<CreateNewsForm> {
           const SizedBox(height: 8),
           TextField(
             controller: _imageCtrl,
+            enabled: !_saving && _pickedImage == null,
             decoration: const InputDecoration(
               labelText: 'URL da imagem (opcional)',
               hintText: 'https://...',
             ),
           ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              OutlinedButton.icon(
+                onPressed: (_saving || _uploadingImage) ? null : _pickImage,
+                icon: const Icon(Icons.upload_file_rounded),
+                label: Text(_pickedImage == null ? 'Upload PNG/JPEG' : 'Trocar imagem'),
+              ),
+              if (_pickedImage != null) ...[
+                const SizedBox(width: 8),
+                TextButton(
+                  onPressed: _saving
+                      ? null
+                      : () {
+                          setState(() => _pickedImage = null);
+                        },
+                  child: const Text('Remover'),
+                ),
+              ],
+            ],
+          ),
+          if (_pickedImage != null) ...[
+            const SizedBox(height: 8),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: Image.file(
+                _pickedImage!,
+                height: 120,
+                width: double.infinity,
+                fit: BoxFit.cover,
+              ),
+            ),
+          ],
           const SizedBox(height: 6),
           Text(
-            'Imagens sao exibidas mantendo proporcao e com compressao visual suave no cliente.',
+            'Você pode informar URL ou fazer upload de arquivo PNG/JPEG.',
             style: Theme.of(context).textTheme.bodySmall,
           ),
           const SizedBox(height: 8),
@@ -139,11 +189,17 @@ class _CreateNewsFormState extends State<CreateNewsForm> {
     });
 
     try {
+      String? imageUrl = _imageCtrl.text.trim().isEmpty ? null : _imageCtrl.text.trim();
+      if (_pickedImage != null) {
+        setState(() => _uploadingImage = true);
+        imageUrl = await widget.appState.uploadImageFile(file: _pickedImage!);
+      }
+
       await widget.appState.createNewsItem(
         titulo: _titleCtrl.text.trim(),
         conteudo: _contentCtrl.text.trim(),
         groupId: _groupId,
-        imagemUrl: _imageCtrl.text.trim().isEmpty ? null : _imageCtrl.text.trim(),
+        imagemUrl: imageUrl,
         linkExterno: _linkCtrl.text.trim().isEmpty ? null : _linkCtrl.text.trim(),
         publico: _publico || _groupId == null,
       );
@@ -156,8 +212,77 @@ class _CreateNewsFormState extends State<CreateNewsForm> {
       });
     } finally {
       if (mounted) {
-        setState(() => _saving = false);
+        setState(() {
+          _saving = false;
+          _uploadingImage = false;
+        });
       }
     }
+  }
+
+  Future<void> _pickImage() async {
+    try {
+      final source = await _chooseImageSource();
+      if (source == null) return;
+
+      final picked = await _imagePicker.pickImage(
+        source: source,
+        imageQuality: 90,
+      );
+      if (picked == null) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Nenhuma imagem selecionada.')),
+        );
+        return;
+      }
+
+      final path = picked.path.toLowerCase();
+      if (!(path.endsWith('.png') || path.endsWith('.jpg') || path.endsWith('.jpeg'))) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Selecione imagem PNG, JPG ou JPEG.')),
+        );
+        return;
+      }
+      if (!mounted) return;
+      setState(() {
+        _pickedImage = File(picked.path);
+        _imageCtrl.clear();
+      });
+    } on PlatformException catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Falha ao abrir seletor de imagem: ${e.message ?? e.code}')),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Erro ao selecionar imagem.')),
+      );
+    }
+  }
+
+  Future<ImageSource?> _chooseImageSource() async {
+    return showModalBottomSheet<ImageSource>(
+      context: context,
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.photo_library_outlined),
+              title: const Text('Galeria'),
+              onTap: () => Navigator.pop(context, ImageSource.gallery),
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_camera_outlined),
+              title: const Text('Camera'),
+              onTap: () => Navigator.pop(context, ImageSource.camera),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }

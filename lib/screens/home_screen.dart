@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../models/event_model.dart';
 import '../models/news_model.dart';
+import 'content_detail_page.dart';
 import '../state/app_state.dart';
 import '../theme/app_theme.dart';
 import '../widgets/app_empty_state.dart';
@@ -174,6 +175,7 @@ class _HomeScreenState extends State<HomeScreen> {
               local: event.local,
               icon: _eventIcon(event.tipo),
               imageUrl: event.imagemUrl,
+              heroTag: 'event-${event.id}',
               externalLink: event.linkExterno,
               onTap: () => _openEventDetail(context, event),
             ),
@@ -186,6 +188,7 @@ class _HomeScreenState extends State<HomeScreen> {
               local: 'Comunicado',
               icon: Icons.campaign_outlined,
               imageUrl: news.imagemUrl,
+              heroTag: 'news-${news.id}',
               externalLink: news.linkExterno,
               onTap: () => _openNewsDetail(context, news),
             ),
@@ -196,46 +199,42 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _openEventDetail(BuildContext context, EventModel event) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (_) => Padding(
-        padding: const EdgeInsets.fromLTRB(20, 20, 20, 26),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(event.nome, style: Theme.of(context).textTheme.titleLarge),
-            const SizedBox(height: 8),
-            Text('Tipo: ${_eventLabel(event.tipo)}'),
-            Text('Data e hora: ${_formatDate(event.dataHora)}'),
-            Text('Local: ${event.local}'),
+    final description = (event.descricao != null && event.descricao!.trim().isNotEmpty)
+        ? event.descricao!
+        : 'Evento sem descricao detalhada cadastrada no momento.';
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ContentDetailPage(
+          title: event.nome,
+          description: description,
+          imageUrl: event.imagemUrl,
+          heroTag: 'event-${event.id}',
+          metadata: [
+            _eventLabel(event.tipo),
+            _formatDate(event.dataHora),
+            event.local,
           ],
+          externalLink: event.linkExterno,
+          externalLinkLabel: 'Abrir link externo',
         ),
       ),
     );
   }
 
   void _openNewsDetail(BuildContext context, NewsModel news) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (_) => Padding(
-        padding: const EdgeInsets.fromLTRB(20, 20, 20, 26),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(news.titulo, style: Theme.of(context).textTheme.titleLarge),
-            const SizedBox(height: 8),
-            Text(news.conteudo),
-          ],
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ContentDetailPage(
+          title: news.titulo,
+          description: news.conteudo,
+          imageUrl: news.imagemUrl,
+          heroTag: 'news-${news.id}',
+          metadata: [_formatDate(news.dataPublicacao), 'Noticia'],
+          externalLink: news.linkExterno,
+          externalLinkLabel: 'Abrir fonte',
         ),
       ),
     );
@@ -443,6 +442,7 @@ class _AgendaCard extends StatelessWidget {
     required this.local,
     required this.icon,
     required this.imageUrl,
+    required this.heroTag,
     required this.externalLink,
     required this.onTap,
   });
@@ -453,6 +453,7 @@ class _AgendaCard extends StatelessWidget {
   final String local;
   final IconData icon;
   final String? imageUrl;
+  final String heroTag;
   final String? externalLink;
   final VoidCallback onTap;
 
@@ -484,15 +485,18 @@ class _AgendaCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 if (imageUrl != null && imageUrl!.isNotEmpty) ...[
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(12),
-                    child: AspectRatio(
-                      aspectRatio: 16 / 9,
-                      child: Image.network(
-                        imageUrl!,
-                        fit: BoxFit.cover,
-                        filterQuality: FilterQuality.medium,
-                        errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                  Hero(
+                    tag: heroTag,
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: AspectRatio(
+                        aspectRatio: 16 / 9,
+                        child: Image.network(
+                          imageUrl!,
+                          fit: BoxFit.cover,
+                          filterQuality: FilterQuality.medium,
+                          errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                        ),
                       ),
                     ),
                   ),

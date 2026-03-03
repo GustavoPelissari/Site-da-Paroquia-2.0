@@ -25,6 +25,9 @@ export class EventEntity {
   @Column({ type: 'enum', enum: EventType })
   tipo!: EventType;
 
+  @Column({ type: 'longtext', nullable: true })
+  descricao!: string | null;
+
   @Column({ name: 'imagem_url', type: 'text', nullable: true })
   imagemUrl!: string | null;
 

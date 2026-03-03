@@ -1,36 +1,34 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as nodemailer from 'nodemailer';
+import { SmtpSettingsService } from './smtp-settings.service';
 
 @Injectable()
 export class AuthMailService {
   private readonly logger = new Logger(AuthMailService.name);
-  private readonly fromEmail: string | null;
-  private readonly resetBaseUrl: string;
-  private readonly transport: nodemailer.Transporter | null;
+  private readonly envHost: string | null;
+  private readonly envPort: number;
+  private readonly envSecure: boolean;
+  private readonly envUser: string | null;
+  private readonly envPass: string | null;
+  private readonly envFromEmail: string | null;
+  private readonly envFromName: string | null;
+  private readonly envResetBaseUrl: string;
 
-  constructor(private readonly config: ConfigService) {
-    const host = this.config.get<string>('SMTP_HOST')?.trim();
-    const port = Number(this.config.get<string>('SMTP_PORT') ?? 587);
-    const secure = String(this.config.get<string>('SMTP_SECURE') ?? 'false') === 'true';
-    const user = this.config.get<string>('SMTP_USER')?.trim();
-    const pass = this.config.get<string>('SMTP_PASS')?.trim();
-    this.fromEmail = this.config.get<string>('SMTP_FROM')?.trim() ?? null;
-    this.resetBaseUrl =
+  constructor(
+    private readonly config: ConfigService,
+    private readonly smtpSettings: SmtpSettingsService,
+  ) {
+    this.envHost = this.config.get<string>('SMTP_HOST')?.trim() ?? null;
+    this.envPort = Number(this.config.get<string>('SMTP_PORT') ?? 587);
+    this.envSecure = String(this.config.get<string>('SMTP_SECURE') ?? 'false') === 'true';
+    this.envUser = this.config.get<string>('SMTP_USER')?.trim() ?? null;
+    this.envPass = this.config.get<string>('SMTP_PASS')?.trim() ?? null;
+    this.envFromEmail = this.config.get<string>('SMTP_FROM')?.trim() ?? null;
+    this.envFromName = this.config.get<string>('SMTP_FROM_NAME')?.trim() ?? null;
+    this.envResetBaseUrl =
       this.config.get<string>('RESET_PASSWORD_BASE_URL')?.trim() ??
       'http://localhost:3000/reset-password';
-
-    if (!host || !this.fromEmail) {
-      this.transport = null;
-      return;
-    }
-
-    this.transport = nodemailer.createTransport({
-      host,
-      port,
-      secure,
-      auth: user && pass ? { user, pass } : undefined,
-    });
   }
 
   async sendResetPasswordEmail(params: {
@@ -39,7 +37,14 @@ export class AuthMailService {
     token: string;
     expiresInMinutes: number;
   }) {
-    const resetUrl = `${this.resetBaseUrl}?token=${encodeURIComponent(params.token)}`;
+    const transport = await this.resolveTransportConfig();
+    if (!transport) {
+      this.logger.warn(`SMTP nao configurado. Email nao enviado para ${params.to}.`);
+      return;
+    }
+
+    const resetBaseUrl = transport.resetBaseUrl ?? this.envResetBaseUrl;
+    const resetUrl = `${resetBaseUrl}?token=${encodeURIComponent(params.token)}`;
     const subject = 'Redefinicao de senha - Paroquia Sao Paulo Apostolo';
     const text =
       `Ola, ${params.name}.\n\n` +
@@ -48,7 +53,8 @@ export class AuthMailService {
       `O link expira em ${params.expiresInMinutes} minutos e pode ser usado uma unica vez.\n` +
       `Se voce nao solicitou essa alteracao, ignore este e-mail.\n`;
 
-    await this.sendOrLog({
+    await this.send({
+      transport,
       to: params.to,
       subject,
       text,
@@ -62,24 +68,84 @@ export class AuthMailService {
       'Sua senha foi alterada com sucesso.\n' +
       'Se voce nao reconhece essa acao, entre em contato com a secretaria imediatamente.\n';
 
-    await this.sendOrLog({
+    const transport = await this.resolveTransportConfig();
+    if (!transport) {
+      this.logger.warn(`SMTP nao configurado. Email de confirmacao nao enviado para ${params.to}.`);
+      return;
+    }
+
+    await this.send({
+      transport,
       to: params.to,
       subject,
       text,
     });
   }
 
-  private async sendOrLog(params: { to: string; subject: string; text: string }) {
-    if (!this.transport || !this.fromEmail) {
-      this.logger.warn(
-        `SMTP nao configurado. Email nao enviado para ${params.to}. Assunto: ${params.subject}`,
-      );
-      this.logger.debug(params.text);
-      return;
+  private async resolveTransportConfig(): Promise<{
+    host: string;
+    port: number;
+    secure: boolean;
+    username: string | null;
+    password: string | null;
+    fromEmail: string;
+    fromName: string | null;
+    resetBaseUrl: string | null;
+  } | null> {
+    const dbConfig = await this.smtpSettings.getResolvedForSending();
+    if (dbConfig?.host && dbConfig?.fromEmail) {
+      return dbConfig;
     }
 
-    await this.transport.sendMail({
-      from: this.fromEmail,
+    if (!this.envHost || !this.envFromEmail) {
+      return null;
+    }
+
+    return {
+      host: this.envHost,
+      port: this.envPort,
+      secure: this.envSecure,
+      username: this.envUser,
+      password: this.envPass,
+      fromEmail: this.envFromEmail,
+      fromName: this.envFromName,
+      resetBaseUrl: this.envResetBaseUrl,
+    };
+  }
+
+  private async send(params: {
+    transport: {
+      host: string;
+      port: number;
+      secure: boolean;
+      username: string | null;
+      password: string | null;
+      fromEmail: string;
+      fromName: string | null;
+    };
+    to: string;
+    subject: string;
+    text: string;
+  }) {
+    const transporter = nodemailer.createTransport({
+      host: params.transport.host,
+      port: params.transport.port,
+      secure: params.transport.secure,
+      auth:
+        params.transport.username != null && params.transport.password != null
+          ? {
+              user: params.transport.username,
+              pass: params.transport.password,
+            }
+          : undefined,
+    });
+
+    const from = params.transport.fromName
+      ? `"${params.transport.fromName}" <${params.transport.fromEmail}>`
+      : params.transport.fromEmail;
+
+    await transporter.sendMail({
+      from,
       to: params.to,
       subject: params.subject,
       text: params.text,

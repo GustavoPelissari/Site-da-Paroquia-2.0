@@ -13,12 +13,16 @@ import { LoginRateLimitGuard } from './login-rate-limit.guard';
 import { PasswordResetTokenEntity } from './password-reset-token.entity';
 import { AuthMailService } from './auth-mail.service';
 import { ForgotPasswordRateLimitGuard } from './forgot-password-rate-limit.guard';
+import { SmtpSettingsEntity } from './smtp-settings.entity';
+import { AuthAdminController } from './auth-admin.controller';
+import { SmtpSettingsService } from './smtp-settings.service';
+import { RolesGuard } from '../../common/roles.guard';
 
 @Module({
   imports: [
     UsersModule,
     PassportModule,
-    TypeOrmModule.forFeature([PasswordResetTokenEntity]),
+    TypeOrmModule.forFeature([PasswordResetTokenEntity, SmtpSettingsEntity]),
     JwtModule.registerAsync({
       inject: [ConfigService],
       useFactory: (cfg: ConfigService) => ({
@@ -27,12 +31,14 @@ import { ForgotPasswordRateLimitGuard } from './forgot-password-rate-limit.guard
       }),
     }),
   ],
-  controllers: [AuthController],
+  controllers: [AuthController, AuthAdminController],
   providers: [
     AuthService,
     AuthMailService,
+    SmtpSettingsService,
     JwtStrategy,
     JwtAuthGuard,
+    RolesGuard,
     LoginRateLimitGuard,
     ForgotPasswordRateLimitGuard,
   ],

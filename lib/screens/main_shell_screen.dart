@@ -8,6 +8,8 @@ import 'events_screen.dart';
 import 'groups_screen.dart';
 import 'home_screen.dart';
 import 'horarios_screen.dart';
+import 'manage_schedules_screen.dart';
+import 'manage_users_screen.dart';
 import 'profile_screen.dart';
 
 class MainShellScreen extends StatefulWidget {
@@ -54,6 +56,7 @@ class _MainShellScreenState extends State<MainShellScreen> {
               appState: widget.appState,
               onCreateNews: () => _openCreateNews(context),
               onCreateEvent: () => _openCreateEvent(context),
+              onManageSchedules: () => _openManageSchedules(context),
             ),
           ),
           body: SafeArea(
@@ -85,6 +88,14 @@ class _MainShellScreenState extends State<MainShellScreen> {
       builder: (_) => CreateEventForm(appState: widget.appState),
     );
   }
+
+  void _openManageSchedules(BuildContext context) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => ManageSchedulesScreen(appState: widget.appState),
+      ),
+    );
+  }
 }
 
 class _InstitutionalHeader extends StatelessWidget {
@@ -93,12 +104,14 @@ class _InstitutionalHeader extends StatelessWidget {
     required this.appState,
     required this.onCreateNews,
     required this.onCreateEvent,
+    required this.onManageSchedules,
   });
 
   final String logoAssetPath;
   final AppState appState;
   final VoidCallback onCreateNews;
   final VoidCallback onCreateEvent;
+  final VoidCallback onManageSchedules;
 
   @override
   Widget build(BuildContext context) {
@@ -164,9 +177,13 @@ class _InstitutionalHeader extends StatelessWidget {
                 } else if (value == 'event') {
                   onCreateEvent();
                 } else if (value == 'users') {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Gestão de usuários em implementação.')),
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => ManageUsersScreen(appState: appState),
+                    ),
                   );
+                } else if (value == 'schedules') {
+                  onManageSchedules();
                 } else if (value == 'logout') {
                   appState.logout();
                 }
@@ -182,6 +199,11 @@ class _InstitutionalHeader extends StatelessWidget {
                 if (appState.canManageUsers) {
                   items.add(
                     const PopupMenuItem(value: 'users', child: Text('Gerenciar usuários')),
+                  );
+                }
+                if (appState.canManageMassSchedules) {
+                  items.add(
+                    const PopupMenuItem(value: 'schedules', child: Text('Gerenciar horários')),
                   );
                 }
                 items.add(const PopupMenuItem(value: 'logout', child: Text('Sair')));
@@ -324,3 +346,7 @@ class _NavItem extends StatelessWidget {
     );
   }
 }
+
+
+
+
