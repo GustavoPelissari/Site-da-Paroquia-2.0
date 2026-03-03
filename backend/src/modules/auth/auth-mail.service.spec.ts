@@ -30,7 +30,7 @@ describe('AuthMailService', () => {
     const service = new AuthMailService(config, smtpSettings);
 
     await service.sendResetPasswordEmail({
-      to: 'usuario@paroquia.local',
+      to: 'gustavo12cristina@gmail.com',
       name: 'Usuario',
       token: 'abc123',
       expiresInMinutes: 60,
@@ -58,7 +58,7 @@ describe('AuthMailService', () => {
     const service = new AuthMailService(config, smtpSettings);
 
     await service.sendResetPasswordEmail({
-      to: 'usuario@paroquia.local',
+      to: 'gustavo12cristina@gmail.com',
       name: 'Usuario',
       token: 'token-123',
       expiresInMinutes: 60,
@@ -98,7 +98,7 @@ describe('AuthMailService', () => {
     const service = new AuthMailService(config, smtpSettings);
 
     await service.sendPasswordChangedEmail({
-      to: 'usuario@paroquia.local',
+      to: 'gustavo12cristina@gmail.com',
       name: 'Usuario',
     });
 
@@ -116,4 +116,3 @@ describe('AuthMailService', () => {
     expect(args.from).toBe('"Env Mailer" <env@paroquia.local>');
   });
 });
-

@@ -12,8 +12,7 @@ import { RolesGuard } from '../../common/roles.guard';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { extname } from 'path';
 import { FileInterceptor } from '@nestjs/platform-express';
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const { diskStorage } = require('multer');
+import { diskStorage } from 'multer';
 
 const allowedExt = new Set(['.png', '.jpg', '.jpeg']);
 

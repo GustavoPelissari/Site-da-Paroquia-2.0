@@ -216,7 +216,7 @@ export class AuthService {
     const refreshTokenHash = await bcrypt.hash(refreshToken, 10);
     try {
       await this.users.updateRefreshTokenHash(user.id, refreshTokenHash);
-    } catch (_) {
+    } catch {
       // Compatibilidade com bancos legados sem coluna refresh_token_hash.
     }
 

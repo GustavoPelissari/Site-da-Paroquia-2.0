@@ -408,17 +408,17 @@ class ApiRepository {
   }
 
   Future<DateTime> fetchServerNow() async {
-    final uri = Uri.parse('$_effectiveBaseUrl/time');
+    final uri = Uri.parse('https://worldtimeapi.org/api/timezone/America/Sao_Paulo');
     final response = await _client.get(uri).timeout(const Duration(seconds: 6));
 
     if (response.statusCode != 200) {
-      throw Exception('Erro ao buscar horario do servidor: ${response.statusCode}');
+      throw Exception('Erro ao buscar horario de Brasilia: ${response.statusCode}');
     }
 
     final raw = jsonDecode(response.body) as Map<String, dynamic>;
-    final now = raw['now'] as String?;
+    final now = raw['datetime'] as String?;
     if (now == null) {
-      throw Exception('Resposta invalida de /time');
+      throw Exception('Resposta invalida da API de horario de Brasilia');
     }
 
     return DateTime.parse(now);

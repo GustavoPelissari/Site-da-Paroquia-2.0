@@ -1,3 +1,5 @@
+import Image from 'next/image';
+
 type EventItem = {
   id: number;
   nome: string;
@@ -57,9 +59,11 @@ export default async function Home() {
       <header className="bg-vinho text-white">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-4">
           <div className="flex items-center gap-3">
-            <img
+            <Image
               src="/img/IMAGEM DE SÃO PAULO APOSTOLO MONOCROMATICA.png"
               alt="Logo da Paroquia"
+              width={40}
+              height={40}
               className="h-10 w-10 object-contain"
             />
             <div className="leading-tight">

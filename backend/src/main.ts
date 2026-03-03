@@ -4,6 +4,7 @@ import { join } from 'path';
 import { Logger, ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { NestExpressApplication } from '@nestjs/platform-express';
+import helmet from 'helmet';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
@@ -15,9 +16,7 @@ async function bootstrap() {
     origin: true,
     credentials: true,
   });
-  const helmetModule = require('helmet');
-  const helmetMiddleware = helmetModule.default ?? helmetModule;
-  app.use(helmetMiddleware());
+  app.use(helmet());
 
   app.useGlobalPipes(
     new ValidationPipe({
