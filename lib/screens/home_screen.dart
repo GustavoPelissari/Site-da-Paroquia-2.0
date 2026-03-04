@@ -26,6 +26,7 @@ class _HomeScreenState extends State<HomeScreen> {
   late Timer _timer;
   Duration _remaining = Duration.zero;
   EventModel? _proximaMissa;
+  final TextEditingController _newsSearchCtrl = TextEditingController();
 
   @override
   void initState() {
@@ -45,6 +46,7 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void dispose() {
     _timer.cancel();
+    _newsSearchCtrl.dispose();
     super.dispose();
   }
 
@@ -111,7 +113,14 @@ class _HomeScreenState extends State<HomeScreen> {
     final safeBottom = MediaQuery.paddingOf(context).bottom;
     final bottomInset = 104.0;
     final eventsFeed = widget.appState.events.take(4).toList();
-    final newsFeed = widget.appState.news.take(3).toList();
+    final newsQuery = _newsSearchCtrl.text.trim().toLowerCase();
+    final filteredNews = newsQuery.isEmpty
+        ? widget.appState.news
+        : widget.appState.news.where((item) {
+            return item.titulo.toLowerCase().contains(newsQuery) ||
+                item.conteudo.toLowerCase().contains(newsQuery);
+          }).toList();
+    final newsFeed = filteredNews.take(3).toList();
     final hasLocalContent = eventsFeed.isNotEmpty || newsFeed.isNotEmpty;
     final shouldShowBlockingLoading =
         widget.appState.isLoadingRemoteData && !hasLocalContent;
@@ -159,6 +168,21 @@ class _HomeScreenState extends State<HomeScreen> {
           const _SectionHeader(
             title: 'Agenda e avisos',
             subtitle: 'Atualizacoes principais da semana',
+          ),
+          const SizedBox(height: 8),
+          TextField(
+            controller: _newsSearchCtrl,
+            onChanged: (_) => setState(() {}),
+            decoration: InputDecoration(
+              hintText: 'Buscar noticias...',
+              prefixIcon: const Icon(Icons.search_rounded),
+              suffixIcon: _newsSearchCtrl.text.isEmpty
+                  ? null
+                  : IconButton(
+                      onPressed: () => setState(() => _newsSearchCtrl.clear()),
+                      icon: const Icon(Icons.close_rounded),
+                    ),
+            ),
           ),
           const SizedBox(height: 10),
           if (eventsFeed.isEmpty && newsFeed.isEmpty)
@@ -235,9 +259,105 @@ class _HomeScreenState extends State<HomeScreen> {
           metadata: [_formatDate(news.dataPublicacao), 'Noticia'],
           externalLink: news.linkExterno,
           externalLinkLabel: 'Abrir fonte',
+          onEdit: widget.appState.canCreateNews
+              ? () => _editNews(context, news)
+              : null,
+          onDelete: widget.appState.canCreateNews
+              ? () => _deleteNews(context, news)
+              : null,
         ),
       ),
     );
+  }
+
+  Future<void> _editNews(BuildContext context, NewsModel news) async {
+    final titleCtrl = TextEditingController(text: news.titulo);
+    final contentCtrl = TextEditingController(text: news.conteudo);
+    final formKey = GlobalKey<FormState>();
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Editar noticia'),
+        content: Form(
+          key: formKey,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextFormField(
+                controller: titleCtrl,
+                decoration: const InputDecoration(labelText: 'Titulo'),
+                validator: (value) => (value == null || value.trim().length < 3) ? 'Titulo invalido' : null,
+              ),
+              const SizedBox(height: 8),
+              TextFormField(
+                controller: contentCtrl,
+                decoration: const InputDecoration(labelText: 'Conteudo'),
+                minLines: 3,
+                maxLines: 6,
+                validator: (value) => (value == null || value.trim().length < 3) ? 'Conteudo invalido' : null,
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancelar')),
+          ElevatedButton(
+            onPressed: () {
+              if (formKey.currentState?.validate() != true) return;
+              Navigator.pop(context, true);
+            },
+            child: const Text('Salvar'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+
+    try {
+      await widget.appState.updateNewsItem(
+        id: news.id,
+        titulo: titleCtrl.text.trim(),
+        conteudo: contentCtrl.text.trim(),
+      );
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Noticia atualizada com sucesso.')),
+      );
+    } catch (_) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Falha ao atualizar noticia.')),
+      );
+    }
+  }
+
+  Future<void> _deleteNews(BuildContext context, NewsModel news) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Excluir noticia'),
+        content: Text('Deseja excluir "${news.titulo}"?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancelar')),
+          ElevatedButton(onPressed: () => Navigator.pop(context, true), child: const Text('Excluir')),
+        ],
+      ),
+    );
+    if (confirm != true) return;
+
+    try {
+      await widget.appState.deleteNewsItem(id: news.id);
+      if (!context.mounted) return;
+      Navigator.of(context).pop();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Noticia excluida com sucesso.')),
+      );
+    } catch (_) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Falha ao excluir noticia.')),
+      );
+    }
   }
 
   static String _shorten(String text) {

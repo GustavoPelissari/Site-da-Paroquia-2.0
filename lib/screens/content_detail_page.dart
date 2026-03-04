@@ -13,6 +13,8 @@ class ContentDetailPage extends StatelessWidget {
     required this.metadata,
     this.externalLink,
     this.externalLinkLabel,
+    this.onEdit,
+    this.onDelete,
   });
 
   final String title;
@@ -22,6 +24,8 @@ class ContentDetailPage extends StatelessWidget {
   final List<String> metadata;
   final String? externalLink;
   final String? externalLinkLabel;
+  final VoidCallback? onEdit;
+  final VoidCallback? onDelete;
 
   @override
   Widget build(BuildContext context) {
@@ -85,6 +89,27 @@ class ContentDetailPage extends StatelessWidget {
                       icon: const Icon(Icons.open_in_new_rounded),
                       label: Text(externalLinkLabel ?? 'Abrir link externo'),
                     ),
+                    ),
+                  ],
+                  if (onEdit != null || onDelete != null) ...[
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        if (onEdit != null)
+                          OutlinedButton.icon(
+                            onPressed: onEdit,
+                            icon: const Icon(Icons.edit_outlined),
+                            label: const Text('Editar'),
+                          ),
+                        if (onDelete != null) ...[
+                          const SizedBox(width: 8),
+                          OutlinedButton.icon(
+                            onPressed: onDelete,
+                            icon: const Icon(Icons.delete_outline_rounded),
+                            label: const Text('Excluir'),
+                          ),
+                        ],
+                      ],
                     ),
                   ],
                 ],

@@ -5,9 +5,12 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
 import '../models/event_model.dart';
+import '../models/form_model.dart';
+import '../models/group_model.dart';
 import '../models/mail_settings_model.dart';
 import '../models/news_model.dart';
 import '../models/parish_info_model.dart';
+import '../models/schedule_model.dart';
 import '../models/user_model.dart';
 
 class ApiRepository {
@@ -43,14 +46,76 @@ class ApiRepository {
     return '${uri.scheme}://${uri.host}$portPart';
   }
 
-  Future<List<EventModel>> fetchEvents() async {
-    final data = await _getList('/events');
+  Future<List<EventModel>> fetchEvents({String? query}) async {
+    final suffix = (query != null && query.trim().isNotEmpty)
+        ? '/events?q=${Uri.encodeQueryComponent(query.trim())}'
+        : '/events';
+    final data = await _getList(suffix);
     return data.map(_eventFromJson).toList();
   }
 
-  Future<List<NewsModel>> fetchNews() async {
-    final data = await _getList('/news');
+  Future<List<NewsModel>> fetchNews({String? query}) async {
+    final suffix = (query != null && query.trim().isNotEmpty)
+        ? '/news?q=${Uri.encodeQueryComponent(query.trim())}'
+        : '/news';
+    final data = await _getList(suffix);
     return data.map(_newsFromJson).toList();
+  }
+
+  Future<List<GroupModel>> fetchGroups({String? query, String? memberUserId}) async {
+    final params = <String>[];
+    if (query != null && query.trim().isNotEmpty) {
+      params.add('q=${Uri.encodeQueryComponent(query.trim())}');
+    }
+    if (memberUserId != null && memberUserId.trim().isNotEmpty) {
+      params.add('memberUserId=${Uri.encodeQueryComponent(memberUserId.trim())}');
+    }
+    final suffix = params.isEmpty ? '/groups' : '/groups?${params.join('&')}';
+    final data = await _getList(suffix);
+    return data.map((raw) {
+      return GroupModel(
+        id: '${raw['id']}',
+        nome: raw['nome'] as String? ?? '',
+        descricao: raw['descricao'] as String? ?? '',
+        coordenadorUserId: raw['coordenadorUserId']?.toString(),
+        permitePdfUpload: _asBool(raw['permitePdfUpload']),
+        permiteFormularios: _asBool(raw['permiteFormularios']),
+        permiteNoticias: _asBool(raw['permiteNoticias']),
+        permiteEventos: _asBool(raw['permiteEventos']),
+      );
+    }).toList();
+  }
+
+  Future<List<FormModel>> fetchGroupForms({required String groupId}) async {
+    final parsedId = int.tryParse(groupId);
+    if (parsedId == null) return const [];
+    final data = await _getList('/groups/$parsedId/forms');
+    return data.map((raw) {
+      return FormModel(
+        id: '${raw['id']}',
+        titulo: raw['titulo'] as String? ?? '',
+        groupId: raw['groupId']?.toString(),
+        publico: _asBool(raw['publico']),
+        ativo: _asBool(raw['ativo']),
+      );
+    }).toList();
+  }
+
+  Future<List<ScheduleModel>> fetchGroupSchedules({required String groupId}) async {
+    final parsedId = int.tryParse(groupId);
+    if (parsedId == null) return const [];
+    final data = await _getList('/groups/$parsedId/schedules');
+    return data.map((raw) {
+      final uploaded = raw['dataUpload']?.toString();
+      return ScheduleModel(
+        id: '${raw['id']}',
+        groupId: '${raw['groupId']}',
+        pdfLabel: raw['pdfLabel'] as String? ?? 'Escala',
+        pdfUrl: raw['pdfUrl'] as String? ?? '',
+        descricao: raw['descricao'] as String?,
+        dataUpload: uploaded != null ? DateTime.tryParse(uploaded) ?? DateTime.now() : DateTime.now(),
+      );
+    }).toList();
   }
 
   Future<NewsModel> createNews({
@@ -120,6 +185,83 @@ class ApiRepository {
 
     final raw = jsonDecode(response.body) as Map<String, dynamic>;
     return _eventFromJson(raw);
+  }
+
+  Future<NewsModel> updateNews({
+    required String id,
+    required String titulo,
+    required String conteudo,
+  }) async {
+    final parsedId = int.tryParse(id);
+    if (parsedId == null) throw Exception('Id da noticia invalido.');
+    final uri = Uri.parse('$_effectiveBaseUrl/news/$parsedId');
+    final response = await _client
+        .patch(
+          uri,
+          headers: _authHeaders(),
+          body: jsonEncode({
+            'titulo': titulo,
+            'conteudo': conteudo,
+          }),
+        )
+        .timeout(const Duration(seconds: 8));
+
+    if (response.statusCode != 200) {
+      throw Exception(_extractApiError(response, fallback: 'Falha ao atualizar noticia'));
+    }
+    final raw = jsonDecode(response.body) as Map<String, dynamic>;
+    return _newsFromJson(raw);
+  }
+
+  Future<void> deleteNews({required String id}) async {
+    final parsedId = int.tryParse(id);
+    if (parsedId == null) throw Exception('Id da noticia invalido.');
+    final uri = Uri.parse('$_effectiveBaseUrl/news/$parsedId');
+    final response = await _client
+        .delete(uri, headers: _authHeaders())
+        .timeout(const Duration(seconds: 8));
+    if (response.statusCode != 200) {
+      throw Exception(_extractApiError(response, fallback: 'Falha ao excluir noticia'));
+    }
+  }
+
+  Future<EventModel> updateEvent({
+    required String id,
+    required String nome,
+    required String local,
+    String? descricao,
+  }) async {
+    final parsedId = int.tryParse(id);
+    if (parsedId == null) throw Exception('Id do evento invalido.');
+    final uri = Uri.parse('$_effectiveBaseUrl/events/$parsedId');
+    final response = await _client
+        .patch(
+          uri,
+          headers: _authHeaders(),
+          body: jsonEncode({
+            'nome': nome,
+            'local': local,
+            'descricao': descricao,
+          }),
+        )
+        .timeout(const Duration(seconds: 8));
+    if (response.statusCode != 200) {
+      throw Exception(_extractApiError(response, fallback: 'Falha ao atualizar evento'));
+    }
+    final raw = jsonDecode(response.body) as Map<String, dynamic>;
+    return _eventFromJson(raw);
+  }
+
+  Future<void> deleteEvent({required String id}) async {
+    final parsedId = int.tryParse(id);
+    if (parsedId == null) throw Exception('Id do evento invalido.');
+    final uri = Uri.parse('$_effectiveBaseUrl/events/$parsedId');
+    final response = await _client
+        .delete(uri, headers: _authHeaders())
+        .timeout(const Duration(seconds: 8));
+    if (response.statusCode != 200) {
+      throw Exception(_extractApiError(response, fallback: 'Falha ao excluir evento'));
+    }
   }
 
   Future<({String token, String refreshToken, UserModel user})> login({

@@ -6,7 +6,7 @@ import '../widgets/app_empty_state.dart';
 import '../widgets/app_loading_view.dart';
 import 'group_detail_screen.dart';
 
-class GroupsScreen extends StatelessWidget {
+class GroupsScreen extends StatefulWidget {
   const GroupsScreen({
     super.key,
     required this.appState,
@@ -15,14 +15,35 @@ class GroupsScreen extends StatelessWidget {
   final AppState appState;
 
   @override
+  State<GroupsScreen> createState() => _GroupsScreenState();
+}
+
+class _GroupsScreenState extends State<GroupsScreen> {
+  final TextEditingController _searchCtrl = TextEditingController();
+
+  @override
+  void dispose() {
+    _searchCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final safeBottom = MediaQuery.paddingOf(context).bottom;
     final bottomInset = 104.0;
-    final hasLocalContent = appState.groups.isNotEmpty;
+    final query = _searchCtrl.text.trim().toLowerCase();
+    final groups = query.isEmpty
+        ? widget.appState.groups
+        : widget.appState.groups.where((group) {
+            return group.nome.toLowerCase().contains(query) ||
+                group.descricao.toLowerCase().contains(query);
+          }).toList();
+
+    final hasLocalContent = widget.appState.groups.isNotEmpty;
     final shouldShowBlockingLoading =
-        appState.isLoadingRemoteData && !hasLocalContent;
+        widget.appState.isLoadingRemoteData && !hasLocalContent;
     final shouldShowNonBlockingWarning =
-        appState.remoteError != null;
+        widget.appState.remoteError != null;
 
     return SafeArea(
       top: false,
@@ -35,7 +56,7 @@ class GroupsScreen extends StatelessWidget {
           if (shouldShowNonBlockingWarning) ...[
             _InlineWarning(
               message: 'Sem conexao com servidor. Exibindo dados locais.',
-              onRetry: appState.retryLoadData,
+              onRetry: widget.appState.retryLoadData,
             ),
             const SizedBox(height: 12),
           ],
@@ -52,14 +73,29 @@ class GroupsScreen extends StatelessWidget {
                   color: const Color(0xFF6A6361),
                 ),
           ),
+          const SizedBox(height: 10),
+          TextField(
+            controller: _searchCtrl,
+            onChanged: (_) => setState(() {}),
+            decoration: InputDecoration(
+              hintText: 'Buscar grupos...',
+              prefixIcon: const Icon(Icons.search_rounded),
+              suffixIcon: _searchCtrl.text.isEmpty
+                  ? null
+                  : IconButton(
+                      onPressed: () => setState(() => _searchCtrl.clear()),
+                      icon: const Icon(Icons.close_rounded),
+                    ),
+            ),
+          ),
           const SizedBox(height: 20),
-          if (appState.groups.isEmpty)
+          if (groups.isEmpty)
             const AppEmptyState(
               icon: Icons.groups_2_outlined,
               title: 'Nenhum grupo encontrado',
               subtitle: 'Novos grupos aparecerao quando forem cadastrados.',
             ),
-          ...appState.groups.map(
+          ...groups.map(
             (group) => _GroupCard(
               title: group.nome,
               subtitle: group.descricao,
@@ -67,7 +103,7 @@ class GroupsScreen extends StatelessWidget {
                 Navigator.of(context).push(
                   MaterialPageRoute(
                     builder: (_) => GroupDetailScreen(
-                      appState: appState,
+                      appState: widget.appState,
                       group: group,
                     ),
                   ),

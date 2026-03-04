@@ -21,14 +21,30 @@ class EventsScreen extends StatefulWidget {
 
 class _EventsScreenState extends State<EventsScreen> {
   EventType? _filter;
+  final TextEditingController _searchCtrl = TextEditingController();
+
+  @override
+  void dispose() {
+    _searchCtrl.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     final safeBottom = MediaQuery.paddingOf(context).bottom;
     final bottomInset = 104.0;
+    final query = _searchCtrl.text.trim().toLowerCase();
     final events = _filter == null
         ? widget.appState.events
         : widget.appState.events.where((e) => e.tipo == _filter).toList();
+    final filteredEvents = query.isEmpty
+        ? events
+        : events
+            .where((e) =>
+                e.nome.toLowerCase().contains(query) ||
+                e.local.toLowerCase().contains(query) ||
+                (e.descricao ?? '').toLowerCase().contains(query))
+            .toList();
     final hasLocalContent = widget.appState.events.isNotEmpty;
     final shouldShowBlockingLoading =
         widget.appState.isLoadingRemoteData && !hasLocalContent;
@@ -68,14 +84,29 @@ class _EventsScreenState extends State<EventsScreen> {
             value: _filter,
             onChanged: (value) => setState(() => _filter = value),
           ),
+          const SizedBox(height: 10),
+          TextField(
+            controller: _searchCtrl,
+            onChanged: (_) => setState(() {}),
+            decoration: InputDecoration(
+              hintText: 'Buscar eventos...',
+              prefixIcon: const Icon(Icons.search_rounded),
+              suffixIcon: _searchCtrl.text.isEmpty
+                  ? null
+                  : IconButton(
+                      onPressed: () => setState(() => _searchCtrl.clear()),
+                      icon: const Icon(Icons.close_rounded),
+                    ),
+            ),
+          ),
           const SizedBox(height: 14),
-          if (events.isEmpty)
+          if (filteredEvents.isEmpty)
             const AppEmptyState(
               icon: Icons.event_busy_outlined,
               title: 'Nenhum evento encontrado',
               subtitle: 'Tente outro filtro ou aguarde novos eventos.',
             ),
-          ...events.map(
+          ...filteredEvents.map(
             (event) => _EventCard(
               title: event.nome,
               type: _eventLabel(event.tipo),
@@ -113,9 +144,110 @@ class _EventsScreenState extends State<EventsScreen> {
           ],
           externalLink: event.linkExterno,
           externalLinkLabel: 'Abrir link externo',
+          onEdit: widget.appState.canCreateEvents
+              ? () => _editEvent(context, event)
+              : null,
+          onDelete: widget.appState.canCreateEvents
+              ? () => _deleteEvent(context, event)
+              : null,
         ),
       ),
     );
+  }
+
+  Future<void> _editEvent(BuildContext context, EventModel event) async {
+    final nomeCtrl = TextEditingController(text: event.nome);
+    final localCtrl = TextEditingController(text: event.local);
+    final descCtrl = TextEditingController(text: event.descricao ?? '');
+    final formKey = GlobalKey<FormState>();
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Editar evento'),
+        content: Form(
+          key: formKey,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextFormField(
+                controller: nomeCtrl,
+                decoration: const InputDecoration(labelText: 'Nome'),
+                validator: (value) => (value == null || value.trim().length < 3) ? 'Nome invalido' : null,
+              ),
+              const SizedBox(height: 8),
+              TextFormField(
+                controller: localCtrl,
+                decoration: const InputDecoration(labelText: 'Local'),
+                validator: (value) => (value == null || value.trim().length < 2) ? 'Local invalido' : null,
+              ),
+              const SizedBox(height: 8),
+              TextFormField(
+                controller: descCtrl,
+                decoration: const InputDecoration(labelText: 'Descricao'),
+                maxLines: 3,
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancelar')),
+          ElevatedButton(
+            onPressed: () {
+              if (formKey.currentState?.validate() != true) return;
+              Navigator.pop(context, true);
+            },
+            child: const Text('Salvar'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+
+    try {
+      await widget.appState.updateEventItem(
+        id: event.id,
+        nome: nomeCtrl.text.trim(),
+        local: localCtrl.text.trim(),
+        descricao: descCtrl.text.trim().isEmpty ? null : descCtrl.text.trim(),
+      );
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Evento atualizado com sucesso.')),
+      );
+    } catch (_) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Falha ao atualizar evento.')),
+      );
+    }
+  }
+
+  Future<void> _deleteEvent(BuildContext context, EventModel event) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Excluir evento'),
+        content: Text('Deseja excluir "${event.nome}"?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancelar')),
+          ElevatedButton(onPressed: () => Navigator.pop(context, true), child: const Text('Excluir')),
+        ],
+      ),
+    );
+    if (confirm != true) return;
+    try {
+      await widget.appState.deleteEventItem(id: event.id);
+      if (!context.mounted) return;
+      Navigator.of(context).pop();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Evento excluido com sucesso.')),
+      );
+    } catch (_) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Falha ao excluir evento.')),
+      );
+    }
   }
 }
 

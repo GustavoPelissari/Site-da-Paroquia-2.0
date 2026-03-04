@@ -31,6 +31,8 @@ class AppState extends ChangeNotifier {
 
   late List<NewsModel> _news = List<NewsModel>.from(_repository.news);
   late List<EventModel> _events = List<EventModel>.from(_repository.events);
+  late List<GroupModel> _groups = List<GroupModel>.from(_repository.groups);
+  late List<ScheduleModel> _schedules = List<ScheduleModel>.from(_repository.schedules);
   final List<FormModel> _forms = [];
   final List<FormResponseModel> _formResponses = [];
 
@@ -56,8 +58,8 @@ class AppState extends ChangeNotifier {
   UserModel get user => _currentUser!;
   String? get token => _token;
 
-  List<GroupModel> get groups => _repository.groups;
-  List<ScheduleModel> get schedules => _repository.schedules;
+  List<GroupModel> get groups => _groups;
+  List<ScheduleModel> get schedules => _schedules;
 
   bool get serverClockReady => _serverClockReady;
   bool get isLoadingRemoteData => _isLoadingRemoteData;
@@ -337,9 +339,47 @@ class AppState extends ChangeNotifier {
     try {
       final fetchedEvents = await _api.fetchEvents();
       final fetchedNews = await _api.fetchNews();
+      final fetchedGroups = await _api.fetchGroups();
 
       if (fetchedEvents.isNotEmpty) _events = fetchedEvents;
       if (fetchedNews.isNotEmpty) _news = fetchedNews;
+      if (fetchedGroups.isNotEmpty) {
+        _groups = fetchedGroups;
+        _forms.clear();
+        _schedules = <ScheduleModel>[];
+
+        for (final group in fetchedGroups) {
+          try {
+            final forms = await _api.fetchGroupForms(groupId: group.id);
+            _forms.addAll(forms);
+          } catch (_) {}
+          try {
+            final schedules = await _api.fetchGroupSchedules(groupId: group.id);
+            _schedules.addAll(schedules);
+          } catch (_) {}
+        }
+        if (_forms.isEmpty) {
+          _forms.addAll(_repository.forms);
+        }
+        if (_schedules.isEmpty) {
+          _schedules = List<ScheduleModel>.from(_repository.schedules);
+        }
+      }
+
+      if (isAuthenticated) {
+        final currentId = int.tryParse(user.id);
+        if (currentId != null) {
+          try {
+            final myGroups = await _api.fetchGroups(memberUserId: '$currentId');
+            final currentUser = _currentUser;
+            if (currentUser != null) {
+              currentUser.groupIds
+                ..clear()
+                ..addAll(myGroups.map((item) => item.id));
+            }
+          } catch (_) {}
+        }
+      }
     } catch (e) {
       _remoteError = e.toString();
     } finally {
@@ -377,7 +417,7 @@ class AppState extends ChangeNotifier {
 
   List<ScheduleModel> schedulesByGroup(String groupId) {
     if (!canViewGroupPrivateContent(groupId)) return [];
-    return _repository.schedules.where((s) => s.groupId == groupId).toList();
+    return _schedules.where((s) => s.groupId == groupId).toList();
   }
 
   List<FormModel> formsByGroup(String groupId) {
@@ -676,6 +716,35 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> updateNewsItem({
+    required String id,
+    required String titulo,
+    required String conteudo,
+  }) async {
+    if (!isAuthenticated || !canCreateNews) {
+      throw Exception('Sem permissao para editar noticia.');
+    }
+    final updated = await _api.updateNews(
+      id: id,
+      titulo: titulo,
+      conteudo: conteudo,
+    );
+    final index = _news.indexWhere((item) => item.id == updated.id);
+    if (index >= 0) {
+      _news[index] = updated;
+      notifyListeners();
+    }
+  }
+
+  Future<void> deleteNewsItem({required String id}) async {
+    if (!isAuthenticated || !canCreateNews) {
+      throw Exception('Sem permissao para excluir noticia.');
+    }
+    await _api.deleteNews(id: id);
+    _news.removeWhere((item) => item.id == id);
+    notifyListeners();
+  }
+
   Future<String> uploadImageFile({required File file}) async {
     if (!isAuthenticated) {
       throw Exception('Sessao invalida.');
@@ -707,6 +776,37 @@ class AppState extends ChangeNotifier {
       publico: publico,
     );
     _events.add(created);
+    notifyListeners();
+  }
+
+  Future<void> updateEventItem({
+    required String id,
+    required String nome,
+    required String local,
+    String? descricao,
+  }) async {
+    if (!isAuthenticated || !canCreateEvents) {
+      throw Exception('Sem permissao para editar evento.');
+    }
+    final updated = await _api.updateEvent(
+      id: id,
+      nome: nome,
+      local: local,
+      descricao: descricao,
+    );
+    final index = _events.indexWhere((item) => item.id == updated.id);
+    if (index >= 0) {
+      _events[index] = updated;
+      notifyListeners();
+    }
+  }
+
+  Future<void> deleteEventItem({required String id}) async {
+    if (!isAuthenticated || !canCreateEvents) {
+      throw Exception('Sem permissao para excluir evento.');
+    }
+    await _api.deleteEvent(id: id);
+    _events.removeWhere((item) => item.id == id);
     notifyListeners();
   }
 

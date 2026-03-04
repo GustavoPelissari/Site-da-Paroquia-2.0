@@ -16,6 +16,12 @@ import { OfficeHourEntity } from './modules/mass-schedules/office-hour.entity';
 import { UserEntity } from './modules/users/user.entity';
 import { PasswordResetTokenEntity } from './modules/auth/password-reset-token.entity';
 import { SmtpSettingsEntity } from './modules/auth/smtp-settings.entity';
+import { GroupsModule } from './modules/groups/groups.module';
+import { GroupEntity } from './modules/groups/group.entity';
+import { GroupMemberEntity } from './modules/groups/group-member.entity';
+import { FormEntity } from './modules/groups/form.entity';
+import { FormResponseEntity } from './modules/groups/form-response.entity';
+import { ScheduleEntity } from './modules/groups/schedule.entity';
 
 @Module({
   imports: [
@@ -38,6 +44,11 @@ import { SmtpSettingsEntity } from './modules/auth/smtp-settings.entity';
           OfficeHourEntity,
           PasswordResetTokenEntity,
           SmtpSettingsEntity,
+          GroupEntity,
+          GroupMemberEntity,
+          FormEntity,
+          FormResponseEntity,
+          ScheduleEntity,
         ],
         synchronize: false,
         charset: 'utf8mb4',
@@ -51,6 +62,7 @@ import { SmtpSettingsEntity } from './modules/auth/smtp-settings.entity';
     TimeModule,
     MassSchedulesModule,
     UploadsModule,
+    GroupsModule,
   ],
 })
 export class AppModule {}
