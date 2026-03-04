@@ -77,6 +77,12 @@ class ApiRepository {
         id: '${raw['id']}',
         nome: raw['nome'] as String? ?? '',
         descricao: raw['descricao'] as String? ?? '',
+        responsavel: raw['responsavel'] as String?,
+        horarioEncontros: raw['horarioEncontros'] as String?,
+        localEncontro: raw['localEncontro'] as String?,
+        imagemUrl: _resolveAssetUrl(raw['imagemUrl'] as String?),
+        contato: raw['contato'] as String?,
+        whatsappLink: raw['whatsappLink'] as String?,
         coordenadorUserId: raw['coordenadorUserId']?.toString(),
         permitePdfUpload: _asBool(raw['permitePdfUpload']),
         permiteFormularios: _asBool(raw['permiteFormularios']),
@@ -855,6 +861,7 @@ class ApiRepository {
       'MISSA' => EventType.missa,
       'REUNIAO' => EventType.reuniao,
       'FESTA' => EventType.festa,
+      'RETIRO' => EventType.retiro,
       _ => EventType.reuniao,
     };
 
@@ -862,12 +869,15 @@ class ApiRepository {
       id: '${raw['id']}',
       nome: raw['nome'] as String? ?? '',
       dataHora: DateTime.parse(raw['dataHora'] as String),
+      dataFinal: raw['dataFinal'] != null ? DateTime.tryParse(raw['dataFinal'] as String) : null,
       local: raw['local'] as String? ?? '',
       tipo: type,
       descricao: raw['descricao'] as String?,
       groupId: raw['groupId']?.toString(),
-      imagemUrl: raw['imagemUrl'] as String?,
+      imagemUrl: _resolveAssetUrl(raw['imagemUrl'] as String?),
       linkExterno: raw['linkExterno'] as String?,
+      linkInscricao: raw['linkInscricao'] as String?,
+      limiteParticipantes: (raw['limiteParticipantes'] as num?)?.toInt(),
       publico: _asBool(raw['publico']),
     );
   }
@@ -877,20 +887,42 @@ class ApiRepository {
       EventType.missa => 'MISSA',
       EventType.reuniao => 'REUNIAO',
       EventType.festa => 'FESTA',
+      EventType.retiro => 'RETIRO',
     };
   }
 
   NewsModel _newsFromJson(Map<String, dynamic> raw) {
+    final gallery = raw['galeriaUrls'];
+    final galleryUrls = gallery is List
+        ? gallery.map((item) => _resolveAssetUrl(item?.toString()) ?? '').where((item) => item.isNotEmpty).toList()
+        : const <String>[];
     return NewsModel(
       id: '${raw['id']}',
       titulo: raw['titulo'] as String? ?? '',
+      subtitulo: raw['subtitulo'] as String?,
+      categoria: raw['categoria'] as String?,
       conteudo: raw['conteudo'] as String? ?? '',
       dataPublicacao: DateTime.parse(raw['dataPublicacao'] as String),
+      agendamentoPublicacao: raw['agendamentoPublicacao'] != null
+          ? DateTime.tryParse(raw['agendamentoPublicacao'] as String)
+          : null,
+      dataExpiracao: raw['dataExpiracao'] != null ? DateTime.tryParse(raw['dataExpiracao'] as String) : null,
       groupId: raw['groupId']?.toString(),
-      imagemUrl: raw['imagemUrl'] as String?,
+      imagemUrl: _resolveAssetUrl(raw['imagemUrl'] as String?),
+      galeriaUrls: galleryUrls,
       linkExterno: raw['linkExterno'] as String?,
+      autorNome: raw['autorNome'] as String?,
+      destaque: _asBool(raw['destaque']),
+      avisoParoquial: _asBool(raw['avisoParoquial']),
       publico: _asBool(raw['publico']),
     );
+  }
+
+  String? _resolveAssetUrl(String? raw) {
+    if (raw == null || raw.trim().isEmpty) return raw;
+    if (raw.startsWith('http://') || raw.startsWith('https://')) return raw;
+    if (raw.startsWith('/')) return '$_baseOrigin$raw';
+    return '$_baseOrigin/$raw';
   }
 
   bool _asBool(dynamic value) {

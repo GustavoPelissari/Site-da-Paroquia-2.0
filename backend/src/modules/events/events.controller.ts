@@ -42,4 +42,11 @@ export class EventsController {
   remove(@Param('id', ParseIntPipe) id: number) {
     return this.events.remove(id);
   }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @MinAccessLevel(AccessLevel.MEMBRO_PASTORAL)
+  @Post(':id/duplicate')
+  duplicate(@Param('id', ParseIntPipe) id: number) {
+    return this.events.duplicate(id);
+  }
 }

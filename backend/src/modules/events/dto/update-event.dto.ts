@@ -1,5 +1,5 @@
 import { Transform } from 'class-transformer';
-import { IsBoolean, IsDateString, IsEnum, IsInt, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
+import { IsBoolean, IsDateString, IsEnum, IsInt, IsOptional, IsString, MaxLength, Min, MinLength } from 'class-validator';
 import { EventType } from '../event.entity';
 
 export class UpdateEventDto {
@@ -13,6 +13,10 @@ export class UpdateEventDto {
   @IsOptional()
   @IsDateString()
   dataHora?: string;
+
+  @IsOptional()
+  @IsDateString()
+  dataFinal?: string;
 
   @IsOptional()
   @IsString()
@@ -42,6 +46,17 @@ export class UpdateEventDto {
   @MaxLength(2048)
   @Transform(({ value }) => (value ? String(value).trim() : undefined))
   linkExterno?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(2048)
+  @Transform(({ value }) => (value ? String(value).trim() : undefined))
+  linkInscricao?: string;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  limiteParticipantes?: number;
 
   @IsOptional()
   @IsBoolean()

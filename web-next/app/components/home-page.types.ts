@@ -1,4 +1,16 @@
-export type TabKey = 'home' | 'conteudo' | 'horarios' | 'grupos' | 'eventos' | 'perfil' | 'admin';
+export type TabKey =
+  | 'dashboard'
+  | 'noticias'
+  | 'eventos'
+  | 'avisos'
+  | 'grupos'
+  | 'pastorais'
+  | 'horarios'
+  | 'localizacao'
+  | 'usuarios'
+  | 'perfil'
+  | 'midia'
+  | 'calendario';
 
 export type User = {
   id: number;
@@ -17,22 +29,34 @@ export type EventItem = {
   id: number;
   nome: string;
   dataHora: string;
+  dataFinal?: string | null;
   local: string;
-  tipo: 'MISSA' | 'REUNIAO' | 'FESTA';
+  tipo: 'MISSA' | 'REUNIAO' | 'FESTA' | 'RETIRO';
   descricao?: string | null;
   imagemUrl?: string | null;
   linkExterno?: string | null;
+  linkInscricao?: string | null;
+  limiteParticipantes?: number | null;
   autorNome?: string | null;
+  groupId?: number | null;
 };
 
 export type NewsItem = {
   id: number;
   titulo: string;
+  subtitulo?: string | null;
+  categoria?: string | null;
   conteudo: string;
   dataPublicacao: string;
+  agendamentoPublicacao?: string | null;
+  dataExpiracao?: string | null;
   imagemUrl?: string | null;
+  galeriaUrls?: string[];
   linkExterno?: string | null;
   autorNome?: string | null;
+  destaque?: boolean;
+  avisoParoquial?: boolean;
+  groupId?: number | null;
 };
 
 export type MassSchedule = {
@@ -68,11 +92,27 @@ export type GroupItem = {
   id: number;
   nome: string;
   descricao: string;
+  responsavel?: string | null;
+  horarioEncontros?: string | null;
+  localEncontro?: string | null;
+  imagemUrl?: string | null;
+  contato?: string | null;
+  whatsappLink?: string | null;
   coordenadorUserId?: number | null;
   permitePdfUpload: boolean;
   permiteFormularios: boolean;
   permiteNoticias: boolean;
   permiteEventos: boolean;
+};
+
+export type MediaFolder = 'noticias' | 'eventos' | 'grupos' | 'geral';
+
+export type MediaItem = {
+  filename: string;
+  folder: MediaFolder;
+  url: string;
+  size: number;
+  updatedAt: string;
 };
 
 export const WEEKDAY_OPTIONS = [

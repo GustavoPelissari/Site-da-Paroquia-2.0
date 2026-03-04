@@ -1,7 +1,9 @@
 import {
   BadRequestException,
   Controller,
+  Get,
   Post,
+  Query,
   UploadedFile,
   UseGuards,
   UseInterceptors,
@@ -13,8 +15,19 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { extname } from 'path';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
+import { readdirSync, statSync } from 'fs';
+import { join } from 'path';
 
 const allowedExt = new Set(['.png', '.jpg', '.jpeg']);
+const allowedFolders = new Set(['noticias', 'eventos', 'grupos', 'geral']);
+
+function sanitizeFolder(raw?: string) {
+  const folder = (raw ?? 'geral').trim().toLowerCase();
+  if (!allowedFolders.has(folder)) {
+    throw new BadRequestException('Pasta invalida. Use: noticias, eventos, grupos ou geral.');
+  }
+  return folder;
+}
 
 @Controller('uploads')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -42,15 +55,50 @@ export class UploadsController {
       },
     }),
   )
-  uploadImage(@UploadedFile() file: any) {
+  uploadImage(@UploadedFile() file: any, @Query('folder') folderRaw?: string) {
     if (!file) {
       throw new BadRequestException('Arquivo nao enviado.');
     }
+    const folder = sanitizeFolder(folderRaw);
+    const oldPath = file.path as string;
+    const finalDir = join(process.cwd(), 'uploads', folder);
+    const finalPath = join(finalDir, file.filename);
+    const fs = require('fs');
+    if (!fs.existsSync(finalDir)) fs.mkdirSync(finalDir, { recursive: true });
+    fs.renameSync(oldPath, finalPath);
     return {
-      url: `/uploads/${file.filename}`,
+      url: `/uploads/${folder}/${file.filename}`,
       filename: file.filename,
+      folder,
       mimeType: file.mimetype,
       size: file.size,
     };
+  }
+
+  @Get('gallery')
+  listGallery(@Query('folder') folderRaw?: string) {
+    const folder = sanitizeFolder(folderRaw);
+    const dir = join(process.cwd(), 'uploads', folder);
+    let files: string[] = [];
+    try {
+      files = readdirSync(dir);
+    } catch {
+      return { folder, items: [] };
+    }
+    const items = files
+      .filter((name) => allowedExt.has(extname(name).toLowerCase()))
+      .map((name) => {
+        const absolute = join(dir, name);
+        const stat = statSync(absolute);
+        return {
+          filename: name,
+          folder,
+          url: `/uploads/${folder}/${name}`,
+          size: stat.size,
+          updatedAt: stat.mtime.toISOString(),
+        };
+      })
+      .sort((a, b) => (a.updatedAt > b.updatedAt ? -1 : 1));
+    return { folder, items };
   }
 }

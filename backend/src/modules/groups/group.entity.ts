@@ -11,6 +11,24 @@ export class GroupEntity {
   @Column({ type: 'text', nullable: true })
   descricao!: string | null;
 
+  @Column({ name: 'responsavel', type: 'varchar', length: 120, nullable: true })
+  responsavel!: string | null;
+
+  @Column({ name: 'horario_encontros', type: 'varchar', length: 160, nullable: true })
+  horarioEncontros!: string | null;
+
+  @Column({ name: 'local_encontro', type: 'varchar', length: 160, nullable: true })
+  localEncontro!: string | null;
+
+  @Column({ name: 'imagem_url', type: 'text', nullable: true })
+  imagemUrl!: string | null;
+
+  @Column({ name: 'contato', type: 'varchar', length: 190, nullable: true })
+  contato!: string | null;
+
+  @Column({ name: 'whatsapp_link', type: 'text', nullable: true })
+  whatsappLink!: string | null;
+
   @Column({ name: 'coordenador_id', type: 'bigint', unsigned: true, nullable: true })
   coordenadorId!: number | null;
 

@@ -17,11 +17,14 @@ export class EventsService {
       id: event.id,
       nome: event.nome,
       dataHora: event.dataHora.toISOString(),
+      dataFinal: event.dataFinal?.toISOString() ?? null,
       local: event.local,
       tipo: event.tipo,
       descricao: event.descricao,
       imagemUrl: event.imagemUrl,
       linkExterno: event.linkExterno,
+      linkInscricao: event.linkInscricao,
+      limiteParticipantes: event.limiteParticipantes,
       publico: !!event.publico,
       groupId: event.groupId,
     };
@@ -63,8 +66,11 @@ export class EventsService {
       local: dto.local,
       tipo: dto.tipo,
       descricao: dto.descricao ?? null,
+      dataFinal: dto.dataFinal ? new Date(dto.dataFinal) : null,
       imagemUrl: dto.imagemUrl ?? null,
       linkExterno: dto.linkExterno ?? null,
+      linkInscricao: dto.linkInscricao ?? null,
+      limiteParticipantes: dto.limiteParticipantes ?? null,
       publico: isPublic ? 1 : 0,
       groupId: dto.groupId ?? null,
     });
@@ -82,8 +88,11 @@ export class EventsService {
     if (dto.local !== undefined) item.local = dto.local;
     if (dto.tipo !== undefined) item.tipo = dto.tipo;
     if (dto.descricao !== undefined) item.descricao = dto.descricao || null;
+    if (dto.dataFinal !== undefined) item.dataFinal = dto.dataFinal ? new Date(dto.dataFinal) : null;
     if (dto.imagemUrl !== undefined) item.imagemUrl = dto.imagemUrl || null;
     if (dto.linkExterno !== undefined) item.linkExterno = dto.linkExterno || null;
+    if (dto.linkInscricao !== undefined) item.linkInscricao = dto.linkInscricao || null;
+    if (dto.limiteParticipantes !== undefined) item.limiteParticipantes = dto.limiteParticipantes ?? null;
     if (dto.groupId !== undefined) item.groupId = dto.groupId ?? null;
     if (dto.publico !== undefined) item.publico = dto.publico ? 1 : 0;
 
@@ -96,5 +105,18 @@ export class EventsService {
     if (!item) throw new NotFoundException('Evento nao encontrado.');
     await this.repo.delete({ id });
     return { message: 'Evento excluido com sucesso.' };
+  }
+
+  async duplicate(id: number) {
+    const source = await this.repo.findOne({ where: { id } });
+    if (!source) throw new NotFoundException('Evento nao encontrado.');
+    const duplicated = this.repo.create({
+      ...source,
+      id: undefined,
+      nome: `${source.nome} (copia)`,
+      dataHora: new Date(source.dataHora.getTime() + 24 * 60 * 60 * 1000),
+    });
+    const saved = await this.repo.save(duplicated);
+    return this.toResponse(saved);
   }
 }

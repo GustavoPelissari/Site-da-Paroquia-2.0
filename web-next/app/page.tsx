@@ -27,7 +27,7 @@ function canManageAdmin(user: User | null) {
 }
 
 export default function Home() {
-  const [tab, setTab] = useState<TabKey>('home');
+  const [tab, setTab] = useState<TabKey>('dashboard');
   const [loading, setLoading] = useState(true);
 
   const auth = useAuth();
@@ -52,7 +52,7 @@ export default function Home() {
       setAppError(null);
       try {
         await loadPublicData();
-        await restoreSession(() => setTab('home'));
+        await restoreSession(() => setTab('dashboard'));
       } catch (error) {
         if (mounted) {
           setAppError(error instanceof Error ? error.message : 'Falha ao carregar dados.');
@@ -68,7 +68,7 @@ export default function Home() {
   }, [loadPublicData, restoreSession, setAppError]);
 
   useEffect(() => {
-    if (tab === 'admin' && canManageAdmin(currentUser)) {
+    if (tab === 'usuarios' && canManageAdmin(currentUser)) {
       void adminLoadUsers();
     }
   }, [adminLoadUsers, currentUser, tab]);
@@ -139,11 +139,23 @@ export default function Home() {
             groups={publicData.groups}
             filteredGroups={publicData.filteredGroups}
             missas={publicData.missas}
-            onLogout={() => auth.onLogout(() => setTab('home'))}
+            onLogout={() => auth.onLogout(() => setTab('dashboard'))}
             newsTitle={publicData.newsTitle}
             setNewsTitle={publicData.setNewsTitle}
+            newsSubtitle={publicData.newsSubtitle}
+            setNewsSubtitle={publicData.setNewsSubtitle}
             newsBody={publicData.newsBody}
             setNewsBody={publicData.setNewsBody}
+            newsCategory={publicData.newsCategory}
+            setNewsCategory={publicData.setNewsCategory}
+            newsImageUrl={publicData.newsImageUrl}
+            setNewsImageUrl={publicData.setNewsImageUrl}
+            newsExternalLink={publicData.newsExternalLink}
+            setNewsExternalLink={publicData.setNewsExternalLink}
+            newsHighlight={publicData.newsHighlight}
+            setNewsHighlight={publicData.setNewsHighlight}
+            newsParishNotice={publicData.newsParishNotice}
+            setNewsParishNotice={publicData.setNewsParishNotice}
             eventName={publicData.eventName}
             setEventName={publicData.setEventName}
             eventLocal={publicData.eventLocal}
@@ -152,18 +164,45 @@ export default function Home() {
             setEventType={publicData.setEventType}
             eventDate={publicData.eventDate}
             setEventDate={publicData.setEventDate}
+            eventDateEnd={publicData.eventDateEnd}
+            setEventDateEnd={publicData.setEventDateEnd}
+            eventDescription={publicData.eventDescription}
+            setEventDescription={publicData.setEventDescription}
+            eventImageUrl={publicData.eventImageUrl}
+            setEventImageUrl={publicData.setEventImageUrl}
+            eventSignupLink={publicData.eventSignupLink}
+            setEventSignupLink={publicData.setEventSignupLink}
+            eventCapacity={publicData.eventCapacity}
+            setEventCapacity={publicData.setEventCapacity}
             onCreateNews={publicData.onCreateNews}
             onCreateEvent={publicData.onCreateEvent}
             onUpdateNews={publicData.onUpdateNews}
             onDeleteNews={publicData.onDeleteNews}
             onUpdateEvent={publicData.onUpdateEvent}
             onDeleteEvent={publicData.onDeleteEvent}
+            onDuplicateEvent={publicData.onDuplicateEvent}
             newsSearch={publicData.newsSearch}
             setNewsSearch={publicData.setNewsSearch}
             eventsSearch={publicData.eventsSearch}
             setEventsSearch={publicData.setEventsSearch}
             groupsSearch={publicData.groupsSearch}
             setGroupsSearch={publicData.setGroupsSearch}
+            globalSearch={publicData.globalSearch}
+            setGlobalSearch={publicData.setGlobalSearch}
+            globalResults={publicData.globalResults}
+            categories={publicData.categories}
+            newsCategoryFilter={publicData.newsCategoryFilter}
+            setNewsCategoryFilter={publicData.setNewsCategoryFilter}
+            eventTypeFilter={publicData.eventTypeFilter}
+            setEventTypeFilter={publicData.setEventTypeFilter}
+            parishNotice={publicData.parishNotice}
+            mediaFolder={publicData.mediaFolder}
+            setMediaFolder={publicData.setMediaFolder}
+            mediaItems={publicData.mediaItems}
+            mediaFile={publicData.mediaFile}
+            setMediaFile={publicData.setMediaFile}
+            onUploadMedia={publicData.onUploadMedia}
+            onLoadMediaGallery={publicData.loadMediaGallery}
             adminNotice={admin.adminNotice}
             newUserName={admin.newUserName}
             setNewUserName={admin.setNewUserName}

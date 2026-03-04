@@ -210,6 +210,50 @@ Get-Content .\db\migrations\20260303_add_password_reset_tokens.sql | & 'C:\xampp
 
 ---
 
+## 7.2 Migration de conteudo e midia
+
+Para habilitar os novos campos de noticias/eventos/grupos e biblioteca de midia:
+
+1. `db/migrations/20260304_enhanced_content_media.sql`
+
+Exemplo:
+
+```powershell
+Get-Content .\db\migrations\20260304_enhanced_content_media.sql | & 'C:\xampp\mysql\bin\mysql.exe' -u root
+```
+
+Pastas de upload suportadas pela API:
+
+- `/uploads/noticias`
+- `/uploads/eventos`
+- `/uploads/grupos`
+- `/uploads/geral`
+
+Endpoints:
+
+- `POST /api/uploads/image?folder=noticias|eventos|grupos|geral`
+- `GET /api/uploads/gallery?folder=noticias|eventos|grupos|geral`
+
+---
+
+## 7.3 Usuarios de teste (seed)
+
+Depois de rodar `db/seed.sql`, voce pode usar:
+
+- Senha para todos: `123456`
+- `ana.fiel@paroquia.local` (nivel 0)
+- `bruno.membro@paroquia.local` (nivel 1)
+- `maria.coordenadora@paroquia.local` (nivel 2)
+- `carlos.admin@paroquia.local` (nivel 3)
+- `padre.jose@paroquia.local` (nivel 3)
+- `usuario.teste@paroquia.local` (nivel 3)
+- `teste.nivel0@paroquia.local` (nivel 0)
+- `teste.nivel1@paroquia.local` (nivel 1)
+- `teste.nivel2@paroquia.local` (nivel 2)
+- `teste.nivel3@paroquia.local` (nivel 3)
+
+---
+
 ## 8. Horarios dinamicos (banco + API)
 
 Dados nao ficam hardcoded:

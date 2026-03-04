@@ -93,6 +93,7 @@ class _CreateEventFormState extends State<CreateEventForm> {
               DropdownMenuItem(value: EventType.missa, child: Text('Missa')),
               DropdownMenuItem(value: EventType.reuniao, child: Text('Reuniao')),
               DropdownMenuItem(value: EventType.festa, child: Text('Festa')),
+              DropdownMenuItem(value: EventType.retiro, child: Text('Retiro')),
             ],
             onChanged: (value) => setState(() => _tipo = value ?? EventType.missa),
           ),

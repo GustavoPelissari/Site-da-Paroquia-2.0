@@ -94,6 +94,8 @@ class _HomeScreenState extends State<HomeScreen> {
         return Icons.groups_2_outlined;
       case EventType.festa:
         return Icons.celebration_outlined;
+      case EventType.retiro:
+        return Icons.terrain_outlined;
     }
   }
 
@@ -105,6 +107,8 @@ class _HomeScreenState extends State<HomeScreen> {
         return 'Reuniao';
       case EventType.festa:
         return 'Festa';
+      case EventType.retiro:
+        return 'Retiro';
     }
   }
 
@@ -121,6 +125,17 @@ class _HomeScreenState extends State<HomeScreen> {
                 item.conteudo.toLowerCase().contains(newsQuery);
           }).toList();
     final newsFeed = filteredNews.take(3).toList();
+    final parishNotice = widget.appState.news.firstWhere(
+      (item) => item.avisoParoquial,
+      orElse: () => NewsModel(
+        id: '',
+        titulo: '',
+        conteudo: '',
+        dataPublicacao: DateTime.now(),
+      ),
+    );
+    final hasParishNotice = parishNotice.id.isNotEmpty;
+    final groupsPreview = widget.appState.groups.take(4).toList();
     final hasLocalContent = eventsFeed.isNotEmpty || newsFeed.isNotEmpty;
     final shouldShowBlockingLoading =
         widget.appState.isLoadingRemoteData && !hasLocalContent;
@@ -156,6 +171,13 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
           ),
           const SizedBox(height: 16),
+        if (hasParishNotice) ...[
+          _InlineWarning(
+            message: 'AVISO PAROQUIAL: ${_shorten(parishNotice.titulo)}',
+            onRetry: widget.appState.retryLoadData,
+          ),
+          const SizedBox(height: 12),
+        ],
         _NextMassCard(
           missa: _proximaMissa,
           countdown: _formatCountdown(),
@@ -215,6 +237,54 @@ class _HomeScreenState extends State<HomeScreen> {
               heroTag: 'news-${news.id}',
               externalLink: news.linkExterno,
               onTap: () => _openNewsDetail(context, news),
+            ),
+          ),
+          const SizedBox(height: 16),
+          const _SectionHeader(
+            title: 'Grupos da Paroquia',
+            subtitle: 'Pastorais e comunidades ativas',
+          ),
+          const SizedBox(height: 10),
+          if (groupsPreview.isEmpty)
+            const AppEmptyState(
+              icon: Icons.groups_outlined,
+              title: 'Sem grupos cadastrados',
+              subtitle: 'Os grupos aparecerao aqui quando forem carregados.',
+            ),
+          ...groupsPreview.map(
+            (group) => Container(
+              margin: const EdgeInsets.only(bottom: 10),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: const Color(0xFFE8E2E2)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    group.nome,
+                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    _shorten(group.descricao),
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: const Color(0xFF6A6361),
+                        ),
+                  ),
+                  if ((group.horarioEncontros ?? '').isNotEmpty) ...[
+                    const SizedBox(height: 6),
+                    Text(
+                      'Encontros: ${group.horarioEncontros}',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ],
+                ],
+              ),
             ),
           ),
         ],

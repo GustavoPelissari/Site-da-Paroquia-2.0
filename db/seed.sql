@@ -22,12 +22,12 @@ ON DUPLICATE KEY UPDATE
   refresh_token_hash = NULL;
 
 INSERT INTO groups (
-  id, nome, descricao, coordenador_id,
+  id, nome, descricao, responsavel, horario_encontros, local_encontro, imagem_url, contato, whatsapp_link, coordenador_id,
   permite_pdf_upload, permite_formularios, permite_noticias, permite_eventos
 ) VALUES
-  (1, 'Pastoral da Juventude', 'Encontros e missoes com jovens.', 3, 1, 1, 1, 1),
-  (2, 'Coroinhas', 'Escalas liturgicas e formacao de altar.', 3, 1, 0, 1, 0),
-  (3, 'Pastoral Familiar', 'Acolhimento e acompanhamento de familias.', 4, 0, 1, 1, 1)
+  (1, 'Pastoral da Juventude', 'Encontros e missoes com jovens.', 'Maria Coordenadora', 'Sabados 19:30', 'Salao Jovem', NULL, 'juventude@paroquia.local', 'https://wa.me/5544999990001', 3, 1, 1, 1, 1),
+  (2, 'Coroinhas', 'Escalas liturgicas e formacao de altar.', 'Bruno Membro', 'Domingos 07:30', 'Sacristia', NULL, 'coroinhas@paroquia.local', 'https://wa.me/5544999990002', 3, 1, 0, 1, 0),
+  (3, 'Pastoral Familiar', 'Acolhimento e acompanhamento de familias.', 'Carlos Administrativo', 'Quartas 20:00', 'Auditorio', NULL, 'familiar@paroquia.local', 'https://wa.me/5544999990003', 4, 0, 1, 1, 1)
 ON DUPLICATE KEY UPDATE nome=VALUES(nome);
 
 INSERT INTO group_members (group_id, user_id) VALUES
@@ -38,60 +38,104 @@ INSERT INTO group_members (group_id, user_id) VALUES
   (3, 4)
 ON DUPLICATE KEY UPDATE group_id=group_id;
 
-INSERT INTO news (titulo, conteudo, imagem_url, link_externo, publico, group_id) VALUES
+INSERT INTO news (
+  titulo, subtitulo, categoria, conteudo, imagem_url, galeria_json, link_externo,
+  publico, destaque, aviso_paroquial, data_publicacao, agendamento_publicacao, data_expiracao, group_id, autor_nome
+) VALUES
   (
     'Festa da Padroeira',
+    'Programacao completa da semana festiva',
+    'Liturgia',
     'Programacao geral com missa, quermesse e momentos de convivencia.',
     'https://images.unsplash.com/photo-1515150144380-bca9f1650ed9',
+    JSON_ARRAY('https://images.unsplash.com/photo-1469474968028-56623f02e42e'),
     'https://paroquia.local/festa-padroeira',
     1,
-    NULL
+    1,
+    1,
+    NOW(),
+    NULL,
+    NULL,
+    NULL,
+    'Padre Jose'
   ),
   (
     'Escala interna da Juventude',
+    'Equipe de acolhida e musica',
+    'Pastoral',
     'Escala de servico dos membros no retiro do mes.',
     NULL,
+    JSON_ARRAY(),
     NULL,
     0,
-    1
-  ),
-  (
-    'Aviso dos Coroinhas',
-    'Encontro mensal dos coroinhas no salao paroquial.',
+    0,
+    0,
+    NOW(),
     NULL,
     NULL,
     1,
-    2
+    'Maria Coordenadora'
+  ),
+  (
+    'Aviso dos Coroinhas',
+    'Preparacao liturgica mensal',
+    'Comunicado',
+    'Encontro mensal dos coroinhas no salao paroquial.',
+    NULL,
+    JSON_ARRAY(),
+    NULL,
+    1,
+    0,
+    1,
+    NOW(),
+    NULL,
+    NULL,
+    2,
+    'Bruno Membro'
   );
 
-INSERT INTO events (nome, data_hora, local, tipo, imagem_url, link_externo, publico, group_id) VALUES
+INSERT INTO events (
+  nome, descricao, data_hora, data_final, local, tipo, imagem_url, link_externo, link_inscricao, limite_participantes, publico, group_id
+) VALUES
   (
     'Missa Dominical',
+    'Celebracao comunitaria de domingo.',
     DATE_ADD(NOW(), INTERVAL 1 DAY),
+    NULL,
     'Igreja Matriz',
     'MISSA',
     'https://images.unsplash.com/photo-1529074963764-98f45c47344b',
+    NULL,
+    NULL,
     NULL,
     1,
     NULL
   ),
   (
     'Reuniao da Juventude',
+    'Planejamento das atividades missionarias.',
     DATE_ADD(NOW(), INTERVAL 2 DAY),
+    NULL,
     'Salao Paroquial',
     'REUNIAO',
     NULL,
     NULL,
+    'https://paroquia.local/inscricao-juventude',
+    60,
     0,
     1
   ),
   (
     'Encontro da Pastoral Familiar',
+    'Noite de espiritualidade para familias.',
     DATE_ADD(NOW(), INTERVAL 3 DAY),
+    DATE_ADD(DATE_ADD(NOW(), INTERVAL 3 DAY), INTERVAL 2 HOUR),
     'Auditorio',
     'FESTA',
     'https://images.unsplash.com/photo-1438232992991-995b7058bbb3',
     'https://paroquia.local/pastoral-familiar',
+    NULL,
+    120,
     1,
     3
   );

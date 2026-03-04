@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, ParseIntPipe, Patch, Post, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, ParseIntPipe, Patch, Post, Query, Req, UseGuards } from '@nestjs/common';
 import { MinAccessLevel } from '../../common/roles.decorator';
 import { RolesGuard } from '../../common/roles.guard';
 import { AccessLevel } from '../../common/access-level';
@@ -12,9 +12,9 @@ export class NewsController {
   constructor(private readonly news: NewsService) {}
 
   @Get()
-  findAll(@Query('groupId') groupId?: string, @Query('q') q?: string) {
+  findAll(@Query('groupId') groupId?: string, @Query('q') q?: string, @Query('categoria') categoria?: string) {
     const parsedGroupId = groupId ? Number(groupId) : undefined;
-    return this.news.findAll(parsedGroupId, q);
+    return this.news.findAll(parsedGroupId, q, categoria);
   }
 
   @Get(':id')
@@ -25,8 +25,8 @@ export class NewsController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @MinAccessLevel(AccessLevel.MEMBRO_PASTORAL)
   @Post()
-  create(@Body() dto: CreateNewsDto) {
-    return this.news.create(dto);
+  create(@Body() dto: CreateNewsDto, @Req() req: { user: { nome?: string } }) {
+    return this.news.create(dto, req.user?.nome);
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)

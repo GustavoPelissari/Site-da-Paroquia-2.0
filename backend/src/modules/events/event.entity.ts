@@ -4,6 +4,7 @@ export enum EventType {
   MISSA = 'MISSA',
   REUNIAO = 'REUNIAO',
   FESTA = 'FESTA',
+  RETIRO = 'RETIRO',
 }
 
 @Entity({ name: 'events' })
@@ -28,11 +29,21 @@ export class EventEntity {
   @Column({ type: 'longtext', nullable: true })
   descricao!: string | null;
 
+  @Index()
+  @Column({ name: 'data_final', type: 'datetime', nullable: true })
+  dataFinal!: Date | null;
+
   @Column({ name: 'imagem_url', type: 'text', nullable: true })
   imagemUrl!: string | null;
 
   @Column({ name: 'link_externo', type: 'text', nullable: true })
   linkExterno!: string | null;
+
+  @Column({ name: 'link_inscricao', type: 'text', nullable: true })
+  linkInscricao!: string | null;
+
+  @Column({ name: 'limite_participantes', type: 'int', nullable: true })
+  limiteParticipantes!: number | null;
 
   @Column({ type: 'tinyint', default: 1 })
   publico!: number;

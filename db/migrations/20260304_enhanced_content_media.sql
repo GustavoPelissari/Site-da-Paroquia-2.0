@@ -1,0 +1,26 @@
+USE pdgp;
+
+ALTER TABLE groups
+  ADD COLUMN IF NOT EXISTS responsavel VARCHAR(120) NULL AFTER descricao,
+  ADD COLUMN IF NOT EXISTS horario_encontros VARCHAR(160) NULL AFTER responsavel,
+  ADD COLUMN IF NOT EXISTS local_encontro VARCHAR(160) NULL AFTER horario_encontros,
+  ADD COLUMN IF NOT EXISTS imagem_url TEXT NULL AFTER local_encontro,
+  ADD COLUMN IF NOT EXISTS contato VARCHAR(190) NULL AFTER imagem_url,
+  ADD COLUMN IF NOT EXISTS whatsapp_link TEXT NULL AFTER contato;
+
+ALTER TABLE news
+  ADD COLUMN IF NOT EXISTS subtitulo VARCHAR(220) NULL AFTER titulo,
+  ADD COLUMN IF NOT EXISTS categoria VARCHAR(80) NULL AFTER subtitulo,
+  ADD COLUMN IF NOT EXISTS galeria_json JSON NULL AFTER imagem_url,
+  ADD COLUMN IF NOT EXISTS destaque TINYINT NOT NULL DEFAULT 0 AFTER publico,
+  ADD COLUMN IF NOT EXISTS aviso_paroquial TINYINT NOT NULL DEFAULT 0 AFTER destaque,
+  ADD COLUMN IF NOT EXISTS agendamento_publicacao DATETIME NULL AFTER data_publicacao,
+  ADD COLUMN IF NOT EXISTS data_expiracao DATETIME NULL AFTER agendamento_publicacao,
+  ADD COLUMN IF NOT EXISTS autor_nome VARCHAR(120) NULL AFTER group_id;
+
+ALTER TABLE events
+  MODIFY COLUMN tipo ENUM('MISSA','REUNIAO','FESTA','RETIRO') NOT NULL,
+  ADD COLUMN IF NOT EXISTS data_final DATETIME NULL AFTER data_hora,
+  ADD COLUMN IF NOT EXISTS descricao LONGTEXT NULL AFTER tipo,
+  ADD COLUMN IF NOT EXISTS link_inscricao TEXT NULL AFTER link_externo,
+  ADD COLUMN IF NOT EXISTS limite_participantes INT NULL AFTER link_inscricao;

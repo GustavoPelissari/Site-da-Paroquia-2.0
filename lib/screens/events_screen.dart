@@ -319,6 +319,8 @@ String _eventLabel(EventType type) {
       return 'Reuniao';
     case EventType.festa:
       return 'Festa';
+    case EventType.retiro:
+      return 'Retiro';
   }
 }
 
@@ -330,6 +332,8 @@ IconData _eventIcon(EventType type) {
       return Icons.groups_2_outlined;
     case EventType.festa:
       return Icons.celebration_outlined;
+    case EventType.retiro:
+      return Icons.terrain_outlined;
   }
 }
 
@@ -363,6 +367,7 @@ class _FilterCard extends StatelessWidget {
           DropdownMenuItem(value: EventType.missa, child: Text('Missa')),
           DropdownMenuItem(value: EventType.reuniao, child: Text('Reuniao')),
           DropdownMenuItem(value: EventType.festa, child: Text('Festa')),
+          DropdownMenuItem(value: EventType.retiro, child: Text('Retiro')),
         ],
         onChanged: onChanged,
       ),
